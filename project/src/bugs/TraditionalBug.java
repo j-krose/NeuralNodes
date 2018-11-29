@@ -5,6 +5,7 @@ import utils.Vector2d;
 public class TraditionalBug extends Bug
 {
     private final int bornInRound_;
+    private int slowRounds = 0;
 
     public TraditionalBug(Vector2d position, int bornInRound)
     {
@@ -38,7 +39,19 @@ public class TraditionalBug extends Bug
     @Override
     protected boolean killedBySpeed(double rawSpeed)
     {
-        return rawSpeed < 0.1;
+        if (Math.abs(rawSpeed) < .1)
+        {
+            slowRounds++;
+        }
+        else
+        {
+            slowRounds = 0;
+        }
+        if (slowRounds > 100)
+        {
+            return true;
+        }
+        return false;
     }
 
     @Override

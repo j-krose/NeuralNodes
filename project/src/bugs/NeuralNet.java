@@ -111,7 +111,8 @@ public class NeuralNet
                 try
                 {
                     f.get();
-                } catch (Exception e)
+                }
+                catch (Exception e)
                 {
                     e.printStackTrace();
                 }
@@ -119,7 +120,6 @@ public class NeuralNet
             layerFutures.clear();
         }
     }
-
 
     public void printNet()
     {
@@ -156,5 +156,10 @@ public class NeuralNet
     public double getWeightAt(int startingLayer, int startingNode, int endingNode)
     {
         return genome_.getWeightAt(startingLayer, startingNode, endingNode);
+    }
+
+    public double getBiasAt(int layer, int node)
+    {
+        return genome_.getBiasAt(layer, node);
     }
 }

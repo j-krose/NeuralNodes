@@ -8,6 +8,7 @@ import java.awt.RenderingHints;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
+import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 
 import bugs.NeuralNet;
@@ -24,6 +25,13 @@ public class NetDrawPanel extends JPanel
 
     private NeuralNet currSelectedBugNet_;
     private NeuralNet nextSelectedBugNet_;
+
+    private final JCheckBox showBiases_;
+
+    public NetDrawPanel(JCheckBox showBiases)
+    {
+        showBiases_ = showBiases;
+    }
 
     public void repaint(NeuralNet selectedBugNet)
     {
@@ -42,7 +50,7 @@ public class NetDrawPanel extends JPanel
         graphics.fillRect(0, 0, getWidth(), getHeight());
 
         currSelectedBugNet_ = nextSelectedBugNet_;
-        
+
         if (currSelectedBugNet_ == null)
         {
             return;
@@ -63,7 +71,7 @@ public class NetDrawPanel extends JPanel
             for (int node = 0; node < nodesInThisLayer; node++)
             {
                 double nodeValue = nodeValues[layer][node];
-                
+
                 int nodeCenterX = ((2 * node) + 1) * currSize.width / (2 * nodesInThisLayer);
                 int nodeCenterY = ((2 * layer) + 1) * currSize.height / (2 * layers);
                 nodeCenters[layer][node] = new Vector2d(nodeCenterX, nodeCenterY);
@@ -90,29 +98,37 @@ public class NetDrawPanel extends JPanel
                 }
             }
         }
-        
+
         for (int layer = 0; layer < layers - 1; layer++)
         {
             for (int startNode = 0; startNode < nodesInLayer[layer]; startNode++)
             {
                 for (int endNode = 0; endNode < nodesInLayer[layer + 1]; endNode++)
                 {
-                    double edgeValue = nodeValues[layer][startNode] * currSelectedBugNet_.getWeightAt(layer, startNode, endNode);
-                    graphics.setColor(nodeValueToColor(edgeValue));
-                    Vector2d startNodeCenter = nodeCenters[layer][startNode];
-                    Vector2d endNodeCenter = nodeCenters[layer + 1][endNode];
-                    Vector2d direction = endNodeCenter.subtract(startNodeCenter).normalize();
-                    Vector2d offset = direction.scale((nodeDiameter / 2) + EXTRA_LINE_SPACE);
-                    Vector2d startPoint = startNodeCenter.add(offset);
-                    Vector2d endPoint = endNodeCenter.subtract(offset);
-                    graphics.drawLine((int) startPoint.getX(), (int) startPoint.getY(), (int) endPoint.getX(), (int) endPoint.getY());
-
+                    double edgeValue = (nodeValues[layer][startNode] * currSelectedBugNet_.getWeightAt(layer, startNode, endNode));
+                    if (showBiases_.isSelected())
+                    {
+                        edgeValue += currSelectedBugNet_.getBiasAt(layer + 1, endNode);
+                        edgeValue /= 2.5;
+                    }
+                    if (Math.abs(edgeValue) > 0.01)
+                    {
+                        graphics.setColor(weightValueToColor(edgeValue));
+                        Vector2d startNodeCenter = nodeCenters[layer][startNode];
+                        Vector2d endNodeCenter = nodeCenters[layer + 1][endNode];
+                        Vector2d direction = endNodeCenter.subtract(startNodeCenter).normalize();
+                        Vector2d offset = direction.scale((nodeDiameter / 2) + EXTRA_LINE_SPACE);
+                        Vector2d startPoint = startNodeCenter.add(offset);
+                        Vector2d endPoint = endNodeCenter.subtract(offset);
+                        graphics.drawLine((int) startPoint.getX(), (int) startPoint.getY(), (int) endPoint.getX(), (int) endPoint.getY());
+                    }
 //                    graphics.drawLine((int) startNodeCenter.getX(), (int) startNodeCenter.getY(), (int) endNodeCenter.getX(), (int) endNodeCenter.getY());
                 }
             }
         }
     }
 
+    // Empty value is white
     private static Color nodeValueToColor(double nodeValue)
     {
         if (nodeValue > 0)
@@ -124,4 +140,18 @@ public class NetDrawPanel extends JPanel
             return new Color(1.f, Math.max(0.f, Math.min(1.f, 1.f + (float) nodeValue)), Math.max(0.f, Math.min(1.f, 1.f + (float) nodeValue)));
         }
     }
+
+    // Empty value is black
+    private static Color weightValueToColor(double nodeValue)
+    {
+        if (nodeValue > 0)
+        {
+            return new Color(0.f, Math.max(0.f, Math.min(1.f, (float) nodeValue)), 0.f);
+        }
+        else
+        {
+            return new Color(Math.max(0.f, Math.min(1.f, (float) -nodeValue)), 0.f, 0.f);
+        }
+    }
+
 }
