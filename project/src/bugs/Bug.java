@@ -5,7 +5,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import utils.ConcurrentTimers;
 import utils.KDTree2d;
+import utils.Sizes;
 import utils.Vector2d;
 
 public abstract class Bug
@@ -66,12 +68,15 @@ public abstract class Bug
         net_ = new NeuralNet(genome_);
     }
 
+    public abstract Bug clone();
+
     public abstract BugType getBugType();
 
     private void fixPosition()
     {
-        position_.setX(Math.max(BUG_RADIUS, Math.min(BugController.BOARD_SIZE.getX() - BUG_RADIUS, position_.getX())));
-        position_.setY(Math.max(BUG_RADIUS, Math.min(BugController.BOARD_SIZE.getY() - BUG_RADIUS, position_.getY())));
+        Vector2d boardSize = Sizes.get().getBoardSize();
+        position_.setX(Math.max(BUG_RADIUS, Math.min(boardSize.getX() - BUG_RADIUS, position_.getX())));
+        position_.setY(Math.max(BUG_RADIUS, Math.min(boardSize.getY() - BUG_RADIUS, position_.getY())));
     }
 
     public Vector2d getPosition()
@@ -114,24 +119,29 @@ public abstract class Bug
         return sig;
     }
 
-    public Future<?> tickBug(KDTree2d<Bug> bugTree, long millisElapsed)
+    public Future<?> tickBug(KDTree2d<BugType> bugTree, long millisElapsed)
     {
         return SHARED_BUG_TICK_EXECUTOR.submit(() ->
-        {            
+        {
+            long nano0 = System.nanoTime();
             onTickStart();
 
+            Vector2d boardSize = Sizes.get().getBoardSize();
+
             // Bugs in trees are copies. Ok to look into them while multithreading
-            Bug otherBug = bugTree.findNearestExcludingSame(position_);
-            Vector2d otherBugPos = otherBug.getPosition();
-            
+            KDTree2d<BugType>.LocationAndData otherBugData = bugTree.findNearestExcludingSame(position_);
+            long nano1 = System.nanoTime();
+            ConcurrentTimers.get().addToTimer("BugSolve1", nano0, nano1);
+            Vector2d otherBugPos = otherBugData.getLocation();
+
             // must be calculated before any movement
-            boolean touchingOtherBug = position_.subtract(otherBug.getPosition()).normSquared() < (BUG_RADIUS_SQUARED * 4.0);
+            boolean touchingOtherBug = position_.subtract(otherBugPos).normSquared() < (BUG_RADIUS_SQUARED * 4.0);
 
             // First four inputs are closeness to walls
             double leftWall = sigmoid(false, 0.1, 25, position_.getX());
-            double rightWall = sigmoid(true, 0.1, BugController.BOARD_SIZE.getX() - 25, position_.getX());
+            double rightWall = sigmoid(true, 0.1, boardSize.getX() - 25, position_.getX());
             double bottomWall = sigmoid(false, 0.1, 25, position_.getY());
-            double topWall = sigmoid(true, 0.1, BugController.BOARD_SIZE.getY() - 25, position_.getY());
+            double topWall = sigmoid(true, 0.1, boardSize.getY() - 25, position_.getY());
 
             // Next four inputs are four "eyes" with cones pointing right, up, left, and
             // down. The value input to the neurons corresponding to these cones is the
@@ -160,11 +170,17 @@ public abstract class Bug
 
             // Next two correspond to same and other nodes. One spikes if the closest node
             // is of the same type, and the other spikes is the approacher is different
-            double same = getBugType() == otherBug.getBugType() ? distanceSigmoid : 0.0;
-            double different = getBugType() != otherBug.getBugType() ? distanceSigmoid : 0.0;
+            double same = getBugType() == otherBugData.getData() ? distanceSigmoid : 0.0;
+            double different = getBugType() != otherBugData.getData() ? distanceSigmoid : 0.0;
+
+            long nano2 = System.nanoTime();
+            ConcurrentTimers.get().addToTimer("BugSolve2", nano1, nano2);
 
             net_.setLayerValues(0, new double[] { rightWall, topWall, leftWall, bottomWall, rightEye, topEye, leftEye, bottomEye, same, different });
             net_.solveNet();
+
+            long nano3 = System.nanoTime();
+            ConcurrentTimers.get().addToTimer("BugSolve3", nano2, nano3);
 
             double[] movement = net_.getResultLayer();
             double outAngle = movement[0] * 2.0 * Math.PI;
@@ -173,15 +189,15 @@ public abstract class Bug
 
             double timeScale = ((double) millisElapsed) / TIME_DIVISOR;
             position_ = position_.add(movementVec.scale(timeScale));
-            
+
             // Death conditions
-            boolean outOfBoundsX = position_.getX() < BUG_RADIUS || position_.getX() > (BugController.BOARD_SIZE.getX() - BUG_RADIUS);
-            boolean outOfBoundsY = position_.getY() < BUG_RADIUS || position_.getY() > (BugController.BOARD_SIZE.getY() - BUG_RADIUS);
+            boolean outOfBoundsX = position_.getX() < BUG_RADIUS || position_.getX() > (boardSize.getX() - BUG_RADIUS);
+            boolean outOfBoundsY = position_.getY() < BUG_RADIUS || position_.getY() > (boardSize.getY() - BUG_RADIUS);
             if (outOfBoundsX || outOfBoundsY)
             {
                 isAlive_ = false;
             }
-            else if (killedByBug(touchingOtherBug, otherBug))
+            else if (killedByBug(touchingOtherBug, otherBugData.getData()))
             {
                 isAlive_ = false;
             }
@@ -194,12 +210,21 @@ public abstract class Bug
                 // should be unnecessary since this is now a death condition
                 fixPosition();
             }
+
+            long nano4 = System.nanoTime();
+            ConcurrentTimers.get().addToTimer("BugSolve4", nano3, nano4);
         });
     }
 
     // Subclasses can override this if they need to do something at the beginning of
     // the tick
     protected void onTickStart()
+    {
+
+    }
+
+    // Subclasses can override this if they need to do something after reproducing
+    protected void updateStateAfterReproduction()
     {
 
     }
@@ -211,7 +236,7 @@ public abstract class Bug
     }
 
     // Subclasses can override this if they might die by neighbor intersections
-    protected boolean killedByBug(boolean touchingClosestBug, Bug closestBug)
+    protected boolean killedByBug(boolean touchingClosestBug, BugType closestBugType)
     {
         return false;
     }

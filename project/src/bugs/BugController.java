@@ -11,24 +11,34 @@ import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Future;
 import java.util.concurrent.SubmissionPublisher;
 
+import utils.ConcurrentTimers;
 import utils.KDTree2d;
+import utils.Sizes;
 import utils.Vector2d;
 
 public class BugController
 {
     public static final Random SHARED_RANDOM = new Random();
-    public static final Vector2d BOARD_SIZE = new Vector2d(800, 500);
 
-    private static final int NUM_TRADITIONAL_BUGS = 200;
-    private static final int MIN_KILLER_BUGS = 0;
-    private static final int MAX_KILLER_BUGS = 0;
+    private static final int MIN_TRADITIONAL_BUGS = 2;
+    private static final int MAX_TRADITIONAL_BUGS = 10000;
+    private static final int MIN_KILLER_BUGS = 2;
+    private static final int MAX_KILLER_BUGS = 10000;
+    // Need some genetic diversity as a seed
+    private static final int START_TRADITIONAL_BUGS = 100;
+    private static final int START_KILLER_BUGS = 100;
     private final Timer timer_;
     private long currMillis_;
     private int round_ = 0;
 
     List<TraditionalBug> traditionalBugList_;
     List<KillerBug> killerBugList_;
-    KDTree2d<Bug> bugTree_;
+    // bugTree_ needs to hold clones of the bugs in the above lists, otherwise there
+    // may be race conditions while all the bugs are
+    // updating against each other. If they are stored as clones, all the bugs are
+    // updating agains the previous state.
+    KDTree2d<BugType> bugTree_;
+    List<Bug> bugsWhichReproducedThisRound_;
     SubmissionPublisher<List<Bug>> tickCompletedPublisher_;
 
     public BugController()
@@ -36,9 +46,11 @@ public class BugController
         bugTree_ = new KDTree2d<>();
 
         // Bug lists will populate themselves on first tick
-        traditionalBugList_ = new LinkedList<>();
-        killerBugList_ = new LinkedList<>();
-        
+        traditionalBugList_ = new ArrayList<>();
+        killerBugList_ = new ArrayList<>();
+
+        bugsWhichReproducedThisRound_ = new ArrayList<>();
+
         tickCompletedPublisher_ = new SubmissionPublisher<>();
 
         currMillis_ = System.currentTimeMillis();
@@ -62,6 +74,7 @@ public class BugController
 
     private void updateBugs()
     {
+        long nanos0 = System.nanoTime();
         long millis = System.currentTimeMillis();
         long ellapsed = millis - currMillis_;
         currMillis_ = millis;
@@ -83,14 +96,51 @@ public class BugController
             }
             catch (Exception e)
             {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
         }
-        
+
+        long nanos1 = System.nanoTime();
+        ConcurrentTimers.get().addToTimer("bug solves", nanos0, nanos1);
+
         bugTree_.clear();
+        bugsWhichReproducedThisRound_.clear();
         updateTraditionalBugList();
         updateKillerBugList();
+
+        for (Bug bug : bugsWhichReproducedThisRound_)
+        {
+            bug.updateStateAfterReproduction();
+        }
+
+        long nanos2 = System.nanoTime();
+        ConcurrentTimers.get().addToTimer("update lists", nanos1, nanos2);
+
+        if (round_ % 250 == 0)
+        {
+            System.out.println("==========");
+            System.out.println("Bug solves   " + ConcurrentTimers.get().getTimer("bug solves"));
+            System.out.println("Update lists " + ConcurrentTimers.get().getTimer("update lists"));
+            System.out.println();
+            System.out.println("BugSolve1    " + ConcurrentTimers.get().getTimer("BugSolve1"));
+            System.out.println("BugSolve2    " + ConcurrentTimers.get().getTimer("BugSolve2"));
+            System.out.println("BugSolve3    " + ConcurrentTimers.get().getTimer("BugSolve3"));
+            System.out.println("BugSolve4    " + ConcurrentTimers.get().getTimer("BugSolve4"));
+        }
+    }
+
+    private <SpecificBug extends Bug> void addBugToEcosystem(SpecificBug newBug, List<SpecificBug> relevantBugList)
+    {
+        relevantBugList.add(newBug);
+        // See documentation on initial declaration of bugTree_ for why we have to clone
+        bugTree_.addLocation(newBug.getPosition(), newBug.getBugType());
+    }
+
+    private <SpecificBug extends Bug> void addBugToEcosystem(SpecificBug newBug, SpecificBug parent1, SpecificBug parent2, List<SpecificBug> relevantBugList)
+    {
+        addBugToEcosystem(newBug, relevantBugList);
+        bugsWhichReproducedThisRound_.add(parent1);
+        bugsWhichReproducedThisRound_.add(parent2);
     }
 
     private void updateTraditionalBugList()
@@ -98,21 +148,21 @@ public class BugController
         // Kill off dead bugs and find reproducers
         List<TraditionalBug> oldTraditionalBugList = new LinkedList<>(traditionalBugList_);
         traditionalBugList_.clear();
-        int reproduceCandidateAge = -1;
+        int oldestBugBirthRound = -1;
         List<TraditionalBug> reproduceCandidates = new ArrayList<>();
         for (TraditionalBug bug : oldTraditionalBugList)
         {
             if (bug.isAlive())
             {
-                traditionalBugList_.add(bug);
-                bugTree_.addLocation(bug.getPosition(), new TraditionalBug(bug));
+                addBugToEcosystem(bug, traditionalBugList_);
 
-                if (reproduceCandidateAge == -1)
+                if (oldestBugBirthRound == -1)
                 {
-                    reproduceCandidateAge = bug.getBornInRound();
+                    oldestBugBirthRound = bug.getBirthRound();
                 }
 
-                if (bug.getBornInRound() == reproduceCandidateAge || reproduceCandidates.size() < 5)
+                // Oldest 5 bugs (or as many as are tied for first) which qualify to reproduce
+                if (bug.isOldEnoughToReproduct(round_) && (reproduceCandidates.size() < 5 || bug.getBirthRound() == oldestBugBirthRound))
                 {
                     reproduceCandidates.add(bug);
                     bug.setIsReproducer(true);
@@ -123,27 +173,22 @@ public class BugController
                 }
             }
         }
-        // Make new bugs
-        if (traditionalBugList_.size() > 0)
+
+        // Make one new bug from reproduction per round
+        if (reproduceCandidates.size() != 0 && traditionalBugList_.size() < MAX_TRADITIONAL_BUGS)
         {
-            for (int i = 0; i < (NUM_TRADITIONAL_BUGS - traditionalBugList_.size()); i++)
-            {
-                int parent1 = SHARED_RANDOM.nextInt(reproduceCandidates.size());
-                int parent2 = SHARED_RANDOM.nextInt(reproduceCandidates.size());
-                TraditionalBug bug = new TraditionalBug(reproduceCandidates.get(parent1), reproduceCandidates.get(parent2), getRandomAvailableLocation(), round_);
-                traditionalBugList_.add(bug);
-                bugTree_.addLocation(bug.getPosition(), new TraditionalBug(bug));
-            }
+            TraditionalBug parent1 = reproduceCandidates.get(SHARED_RANDOM.nextInt(reproduceCandidates.size()));
+            TraditionalBug parent2 = reproduceCandidates.get(SHARED_RANDOM.nextInt(reproduceCandidates.size()));
+            TraditionalBug newBug = new TraditionalBug(parent1, parent2, getRandomAvailableLocation(), round_);
+            addBugToEcosystem(newBug, parent1, parent2, traditionalBugList_);
         }
-        else
+
+        // Refill with random bugs as necessary
+        int minBugs = round_ == 0 ? START_TRADITIONAL_BUGS : MIN_TRADITIONAL_BUGS;
+        while (traditionalBugList_.size() < minBugs)
         {
-            // On first tick, and just in case all bugs die
-            for (int i = 0; i < NUM_TRADITIONAL_BUGS; i++)
-            {
-                TraditionalBug bug = new TraditionalBug(getRandomAvailableLocation(), round_);
-                traditionalBugList_.add(bug);
-                bugTree_.addLocation(bug.getPosition(), new TraditionalBug(bug));
-            }
+            TraditionalBug newBug = new TraditionalBug(getRandomAvailableLocation(), round_);
+            addBugToEcosystem(newBug, traditionalBugList_);
         }
     }
 
@@ -156,13 +201,12 @@ public class BugController
         killerBugList_.clear();
         int numTopKills = -1;
         List<KillerBug> topKillers = new ArrayList<>();
-        List<KillerBug> killedThisRound = new ArrayList<>();
+        List<KillerBug> readyToReproduce = new ArrayList<>();
         for (KillerBug bug : oldKillerBugList)
         {
             if (bug.isAlive())
             {
-                killerBugList_.add(bug);
-                bugTree_.addLocation(bug.getPosition(), new KillerBug(bug));
+                addBugToEcosystem(bug, killerBugList_);
 
                 if (numTopKills == -1)
                 {
@@ -175,33 +219,32 @@ public class BugController
                     topKillers.add(bug);
                     bug.setIsReproducer(true);
                 }
-                if (bug.killedThisRound())
+                if (bug.hasKilledEnoughToReproduce())
                 {
-                    killedThisRound.add(bug);
+                    readyToReproduce.add(bug);
                     bug.setIsReproducer(true);
                 }
             }
         }
         // Make new bugs
-        int killerThisRoundIndex = 0;
-        while (killerBugList_.size() < MAX_KILLER_BUGS && killerThisRoundIndex < killedThisRound.size())
+        int readyToReproduceIndex = 0;
+        while (killerBugList_.size() < MAX_KILLER_BUGS && readyToReproduceIndex < readyToReproduce.size())
         {
-            int topKillersIndex = SHARED_RANDOM.nextInt(topKillers.size());
+            // TODO: Make reproduction generic?
+            KillerBug reproducer = readyToReproduce.get(readyToReproduceIndex);
+            KillerBug topKillerToReproduceWith = topKillers.get(SHARED_RANDOM.nextInt(topKillers.size()));
+            KillerBug newBug = new KillerBug(reproducer, topKillerToReproduceWith, getRandomAvailableLocation());
+            addBugToEcosystem(newBug, reproducer, topKillerToReproduceWith, killerBugList_);
 
-            KillerBug newBug = new KillerBug(topKillers.get(topKillersIndex), killedThisRound.get(killerThisRoundIndex), getRandomAvailableLocation());
-            killerBugList_.add(newBug);
-            bugTree_.addLocation(newBug.getPosition(), newBug);
-            killerThisRoundIndex++;
+            readyToReproduceIndex++;
         }
         // Make random bugs if we drop below minimum
-        if (killerBugList_.size() < MIN_KILLER_BUGS)
+        // TODO: This can be generic
+        int minBugs = round_ == 0 ? START_KILLER_BUGS : MIN_KILLER_BUGS;
+        while (killerBugList_.size() < minBugs)
         {
-            for (int i = 0; i < MIN_KILLER_BUGS; i++)
-            {
-                KillerBug newBug = new KillerBug(getRandomAvailableLocation());
-                killerBugList_.add(newBug);
-                bugTree_.addLocation(newBug.getPosition(), newBug);
-            }
+            KillerBug newBug = new KillerBug(getRandomAvailableLocation());
+            addBugToEcosystem(newBug, killerBugList_);
         }
     }
 
@@ -226,12 +269,15 @@ public class BugController
         return tickCompletedPublisher_;
     }
 
+    // TODO: getRandomAvailableLocationNearExistingLocation() for reproductions
     private Vector2d getRandomAvailableLocation()
     {
+        Vector2d boardSize = Sizes.get().getBoardSize();
+
         int steps = 0;
         while (steps < 100)
         {
-            Vector2d loc = new Vector2d(SHARED_RANDOM.nextDouble() * BOARD_SIZE.getX(), SHARED_RANDOM.nextDouble() * BOARD_SIZE.getY());
+            Vector2d loc = new Vector2d(SHARED_RANDOM.nextDouble() * boardSize.getX(), SHARED_RANDOM.nextDouble() * boardSize.getY());
             Vector2d nearest = bugTree_.findNearestLocation(loc);
             if (nearest == null || (loc.subtract(nearest).normSquared() > (Bug.BUG_RADIUS_SQUARED * 4.0)))
             {
@@ -240,6 +286,6 @@ public class BugController
             steps++;
         }
         System.err.println("Could not find a valid location");
-        return new Vector2d(BOARD_SIZE.getX() / 2.0, BOARD_SIZE.getY() / 2.0);
+        return new Vector2d(boardSize.getX() / 2.0, boardSize.getY() / 2.0);
     }
 }

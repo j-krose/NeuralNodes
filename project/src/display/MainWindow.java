@@ -14,7 +14,7 @@ import javax.swing.WindowConstants;
 
 import bugs.Bug;
 import bugs.BugController;
-import utils.Vector2d;
+import utils.Sizes;
 
 public class MainWindow
 {
@@ -23,22 +23,20 @@ public class MainWindow
     private NetDrawPanel netDrawPanel_;
     private JCheckBox showBiases_;
 
-    public static final int BORDER = 5;
-    private static final int NET_PANEL_WIDTH = 400;
-
     public MainWindow(BugController bugController)
     {
         javax.swing.SwingUtilities.invokeLater(() -> initialize(bugController));
     }
+
+    public static final int BIAS_PANEL_HEIGHT = 30;
 
     public void initialize(BugController bugController)
     {
         mainFrame_ = new JFrame("Neurotic Nodes");
         mainFrame_.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         mainFrame_.setLayout(new GridBagLayout());
-        Vector2d boardSize = BugController.BOARD_SIZE;
 
-        mainDrawPanel_ = new MainDrawPanel(boardSize);
+        mainDrawPanel_ = new MainDrawPanel();
         GridBagConstraints mainDrawPanelConstraints = new GridBagConstraints();
         mainDrawPanelConstraints.gridx = 0;
         mainDrawPanelConstraints.gridy = 0;
@@ -46,25 +44,22 @@ public class MainWindow
         mainDrawPanelConstraints.fill = GridBagConstraints.BOTH;
         mainDrawPanelConstraints.weightx = 1.0;
         mainDrawPanelConstraints.weighty = 1.0;
-        int mainWidth = (int) boardSize.getX() + (BORDER * 2);
-        int height = (int) boardSize.getY() + (BORDER * 2);
-//        mainDrawPanelConstraints.ipadx = mainWidth - ;
-//        mainDrawPanelConstraints.ipady = height;
+        int mainWidth = Sizes.get().getBoardWidthWithBorder();
+        int height = Sizes.get().getTotalHeight();
         mainDrawPanel_.setPreferredSize(new Dimension(mainWidth, height));
         mainFrame_.getContentPane().add(mainDrawPanel_, mainDrawPanelConstraints);
 
         showBiases_ = new JCheckBox("Include biases");
 
         netDrawPanel_ = new NetDrawPanel(showBiases_);
+        int netPanelWidth = Sizes.get().getNetPanelWidth();
         GridBagConstraints netDrawPanelContraints = new GridBagConstraints();
         netDrawPanelContraints.gridx = 1;
         netDrawPanelContraints.gridy = 0;
         netDrawPanelContraints.fill = GridBagConstraints.BOTH;
         netDrawPanelContraints.weightx = 1.0;
         netDrawPanelContraints.weighty = 1.0;
-//        netDrawPanelContraints.ipadx = NET_PANEL_WIDTH;
-//        netDrawPanelContraints.ipady = height;
-        netDrawPanel_.setPreferredSize(new Dimension(NET_PANEL_WIDTH, height - 30));
+        netDrawPanel_.setPreferredSize(new Dimension(netPanelWidth, height - BIAS_PANEL_HEIGHT));
         mainFrame_.getContentPane().add(netDrawPanel_, netDrawPanelContraints);
 
         JPanel optionPanel = new JPanel();
@@ -72,10 +67,10 @@ public class MainWindow
         GridBagConstraints optionPanelConstraings = new GridBagConstraints();
         optionPanelConstraings.gridx = 1;
         optionPanelConstraings.gridy = 1;
-        optionPanel.setPreferredSize(new Dimension(NET_PANEL_WIDTH, 30));
+        optionPanel.setPreferredSize(new Dimension(netPanelWidth, BIAS_PANEL_HEIGHT));
         mainFrame_.getContentPane().add(optionPanel, optionPanelConstraings);
 
-        mainFrame_.getContentPane().setPreferredSize(new Dimension(mainWidth + NET_PANEL_WIDTH, height));
+        mainFrame_.getContentPane().setPreferredSize(Sizes.get().getTotal());
         mainFrame_.pack();
         mainFrame_.setVisible(true);
 

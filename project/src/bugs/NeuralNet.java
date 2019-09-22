@@ -1,10 +1,7 @@
 package bugs;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class NeuralNet
 {
@@ -32,17 +29,22 @@ public class NeuralNet
     {
         genome_ = new Genome(other.genome_);
         nodesInLayer_ = genome_.getNodesInLayer();
-        nodeValues_ = new double[nodesInLayer_.length][];
-        for (int i = 0; i < nodesInLayer_.length; i++)
+        nodeValues_ = new double[getNumLayers()][];
+        for (int i = 0; i < getNumLayers(); i++)
         {
             nodeValues_[i] = other.nodeValues_[i].clone();
         }
     }
 
+    private int getNumLayers()
+    {
+        return nodesInLayer_.length;
+    }
+
     private void clearNodeValues()
     {
-        nodeValues_ = new double[nodesInLayer_.length][];
-        for (int i = 0; i < nodesInLayer_.length; i++)
+        nodeValues_ = new double[getNumLayers()][];
+        for (int i = 0; i < getNumLayers(); i++)
         {
             nodeValues_[i] = new double[nodesInLayer_[i]];
             for (int j = 0; j < nodesInLayer_[i]; j++)
@@ -54,7 +56,7 @@ public class NeuralNet
 
     public void setLayerValues(int layer, double[] values)
     {
-        assert layer >= 0 && layer < nodesInLayer_.length : "Incorect layer";
+        assert layer >= 0 && layer < getNumLayers() : "Incorect layer";
         assert nodesInLayer_[layer] == values.length : "Incorrect number of values for layer";
         nodeValues_[layer] = values.clone();
     }
@@ -71,7 +73,7 @@ public class NeuralNet
 
         public SolveNode(int layer, int node)
         {
-            assert layer > 0 && layer < nodesInLayer_.length : "Incorect layer";
+            assert layer > 0 && layer < getNumLayers() : "Incorect layer";
             layer_ = layer;
             node_ = node;
         }
@@ -84,7 +86,7 @@ public class NeuralNet
                 value += (nodeValues_[layer_ - 1][i] * genome_.getWeightAt(layer_ - 1, i, node_));
             }
             value += genome_.getBiasAt(layer_, node_);
-            if (layer_ == 1)
+            if (layer_ != (getNumLayers() - 1))
             {
                 nodeValues_[layer_][node_] = ReLU(value);
             }
@@ -98,32 +100,39 @@ public class NeuralNet
     // should only be called once the input layer is set
     public void solveNet()
     {
-        List<Future<?>> layerFutures = new LinkedList<>();
-        for (int i = 1; i < nodesInLayer_.length; i++)
+//        List<Future<?>> layerFutures = new LinkedList<>();
+//        for (int i = 1; i < getNumLayers(); i++)
+//        {
+//            for (int j = 0; j < nodeValues_[i].length; j++)
+//            {
+//                layerFutures.add(SHARED_NODE_SOLVE_EXECUTOR.submit(new SolveNode(i, j)));
+//            }
+//            for (Future<?> f : layerFutures)
+//            {
+//                // Wait for the layer to complete before moving on to the next layer
+//                try
+//                {
+//                    f.get();
+//                }
+//                catch (Exception e)
+//                {
+//                    e.printStackTrace();
+//                }
+//            }
+//            layerFutures.clear();
+//        }
+        for (int i = 1; i < getNumLayers(); i++)
         {
             for (int j = 0; j < nodeValues_[i].length; j++)
             {
-                layerFutures.add(SHARED_NODE_SOLVE_EXECUTOR.submit(new SolveNode(i, j)));
+                new SolveNode(i, j).run();
             }
-            for (Future<?> f : layerFutures)
-            {
-                // Wait for the layer to complete before moving on to the next layer
-                try
-                {
-                    f.get();
-                }
-                catch (Exception e)
-                {
-                    e.printStackTrace();
-                }
-            }
-            layerFutures.clear();
         }
     }
 
     public void printNet()
     {
-        for (int i = 0; i < nodesInLayer_.length; i++)
+        for (int i = 0; i < getNumLayers(); i++)
         {
             for (int j = 0; j < nodesInLayer_[i]; j++)
             {
@@ -135,7 +144,7 @@ public class NeuralNet
 
     public double[] getResultLayer()
     {
-        return nodeValues_[nodeValues_.length - 1];
+        return nodeValues_[getNumLayers() - 1];
     }
 
     public int[] getNodesInLayer()
@@ -145,8 +154,8 @@ public class NeuralNet
 
     public double[][] getNodeValues()
     {
-        double nodeValueCopy[][] = new double[nodeValues_.length][];
-        for (int i = 0; i < nodeValues_.length; i++)
+        double nodeValueCopy[][] = new double[getNumLayers()][];
+        for (int i = 0; i < getNumLayers(); i++)
         {
             nodeValueCopy[i] = nodeValues_[i].clone();
         }

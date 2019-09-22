@@ -4,10 +4,12 @@ import utils.Vector2d;
 
 public class KillerBug extends Bug
 {
-    private static final int LIFE_FORCE = 1200;
+    private static final int LIFE_FORCE = 60 /* ~ fps */ * 20 /* seconds */;
+    private static final int NUM_KILLS_TO_REPRODUCE = 5;
     private boolean killedThisRound_ = false;
     private int sinceLastKill_ = 0;
     private int numKills_ = 0;
+    private int numKillsSinceLastReproduction_ = 0;
 
     public KillerBug(Vector2d position)
     {
@@ -27,7 +29,12 @@ public class KillerBug extends Bug
         super(bug1, bug2, position);
     }
 
-    public boolean killedThisRound()
+    public KillerBug clone()
+    {
+        return new KillerBug(this);
+    }
+
+    public boolean killedThisRound() // TODO: `madeAKillThisRound()`
     {
         return killedThisRound_;
     }
@@ -35,6 +42,11 @@ public class KillerBug extends Bug
     public int getNumKills()
     {
         return numKills_;
+    }
+
+    public boolean hasKilledEnoughToReproduce()
+    {
+        return numKillsSinceLastReproduction_ >= NUM_KILLS_TO_REPRODUCE;
     }
 
     @Override
@@ -51,11 +63,17 @@ public class KillerBug extends Bug
     }
 
     @Override
-    protected boolean killedByBug(boolean touchingClosestBug, Bug closestBug)
+    protected void updateStateAfterReproduction()
+    {
+        numKillsSinceLastReproduction_ = 0;
+    }
+
+    @Override
+    protected boolean killedByBug(boolean touchingClosestBug, BugType closestBugType)
     {
         if (touchingClosestBug)
         {
-            if (closestBug.getBugType() == BugType.KILLER)
+            if (closestBugType == BugType.KILLER)
             {
                 return true;
             }
@@ -64,10 +82,11 @@ public class KillerBug extends Bug
                 killedThisRound_ = true;
                 sinceLastKill_ = 0;
                 numKills_++;
+                numKillsSinceLastReproduction_++;
                 return false;
             }
         }
-        if (sinceLastKill_ > LIFE_FORCE)
+        if (sinceLastKill_ > LIFE_FORCE) // TODO: put this somewhere else
         {
             return true;
         }

@@ -19,6 +19,11 @@ public class KDTree2d<T>
             data_ = data;
         }
 
+        public LocationAndData toLocationAndData()
+        {
+            return new LocationAndData(location_, data_);
+        }
+
         public int getDepth()
         {
             return depth_;
@@ -27,11 +32,6 @@ public class KDTree2d<T>
         public Vector2d getLocation()
         {
             return new Vector2d(location_);
-        }
-
-        public T getData()
-        {
-            return data_;
         }
 
         public void setLesser(TreeNode lesser)
@@ -52,6 +52,28 @@ public class KDTree2d<T>
         public TreeNode getGreater()
         {
             return greater_;
+        }
+    }
+
+    public class LocationAndData
+    {
+        public Vector2d location_;
+        public T data_;
+
+        public LocationAndData(Vector2d location, T data)
+        {
+            location_ = new Vector2d(location);
+            data_ = data;
+        }
+
+        public Vector2d getLocation()
+        {
+            return new Vector2d(location_);
+        }
+
+        public T getData()
+        {
+            return data_;
         }
     }
 
@@ -123,7 +145,8 @@ public class KDTree2d<T>
         {
             return null;
         }
-        return findNearestHelper(location, false, root_, 100000000.0).getLocation();
+        TreeNodeAndDistanceSquared tn = findNearestHelper(location, false, root_, 100000000.0);
+        return tn.treeNode_.getLocation();
     }
 
     public Vector2d findNearestLocationExcludingSame(Vector2d location)
@@ -132,31 +155,44 @@ public class KDTree2d<T>
         {
             return null;
         }
-        return findNearestHelper(location, true, root_, 100000000.0).getLocation();
+        return findNearestHelper(location, true, root_, 100000000.0).treeNode_.getLocation();
     }
 
-    public T findNearest(Vector2d location)
+    public LocationAndData findNearest(Vector2d location)
     {
         if (root_ == null)
         {
             return null;
         }
-        return findNearestHelper(location, false, root_, 100000000.0).getData();
+        return findNearestHelper(location, false, root_, 100000000.0).treeNode_.toLocationAndData();
     }
 
-    public T findNearestExcludingSame(Vector2d location)
+    public LocationAndData findNearestExcludingSame(Vector2d location)
     {
         if (root_ == null)
         {
             return null;
         }
-        return findNearestHelper(location, true, root_, 100000000.0).getData();
+        return findNearestHelper(location, true, root_, 100000000.0).treeNode_.toLocationAndData();
     }
 
-    private TreeNode findNearestHelper(Vector2d location, boolean excludingSame, TreeNode currNode, double currClosestSquared)
+    private class TreeNodeAndDistanceSquared
+    {
+        public TreeNode treeNode_;
+        public double closestSquared_;
+
+        public TreeNodeAndDistanceSquared(TreeNode treeNode, double closestSquared)
+        {
+            treeNode_ = treeNode;
+            closestSquared_ = closestSquared;
+        }
+
+    }
+
+    private TreeNodeAndDistanceSquared findNearestHelper(Vector2d location, boolean excludingSame, TreeNode currNode, double currClosestSquared)
     {
         assert currNode != null : "Null node passed to recursive function";
-        
+
         TreeNode closestNode = null;
         double squareDistance = location.subtract(currNode.location_).normSquared();
         if (squareDistance < currClosestSquared && (!excludingSame || squareDistance > 0.00000001))
@@ -164,40 +200,38 @@ public class KDTree2d<T>
             closestNode = currNode;
             currClosestSquared = squareDistance;
         }
-        
+
         double border = ((currNode.getDepth() % 2) == 0) ? currNode.getLocation().getX() : currNode.getLocation().getY();
         double locationDimension = ((currNode.getDepth() % 2) == 0) ? location.getX() : location.getY();
         double squareDistanceFromBorder = Math.pow(locationDimension - border, 2.0);
-        
+
         if (locationDimension < border || squareDistanceFromBorder < currClosestSquared)
         {
             if (currNode.getLesser() != null)
             {
-                TreeNode lesserNode = findNearestHelper(location, excludingSame, currNode.getLesser(), currClosestSquared);
+                TreeNodeAndDistanceSquared lesserNode = findNearestHelper(location, excludingSame, currNode.getLesser(), currClosestSquared);
                 if (lesserNode != null)
                 {
-                    closestNode = lesserNode;
-                    // TODO: would be more efficient if this was passed back up instead of
-                    // recalculated
-                    currClosestSquared = location.subtract(lesserNode.getLocation()).normSquared();
-                }
-            }
-        }
-        
-        if (locationDimension > border || squareDistanceFromBorder < currClosestSquared)
-        {
-            if (currNode.getGreater() != null)
-            {
-                TreeNode greaterNode = findNearestHelper(location, excludingSame, currNode.getGreater(), currClosestSquared);
-                if (greaterNode != null)
-                {
-                    closestNode = greaterNode;
-                    // No need to update currClosestSquared since we don't use it after this.
+                    closestNode = lesserNode.treeNode_;
+                    currClosestSquared = lesserNode.closestSquared_;
                 }
             }
         }
 
-        return closestNode;
+        if (locationDimension > border || squareDistanceFromBorder < currClosestSquared)
+        {
+            if (currNode.getGreater() != null)
+            {
+                TreeNodeAndDistanceSquared greaterNode = findNearestHelper(location, excludingSame, currNode.getGreater(), currClosestSquared);
+                if (greaterNode != null)
+                {
+                    closestNode = greaterNode.treeNode_;
+                    currClosestSquared = greaterNode.closestSquared_;
+                }
+            }
+        }
+
+        return closestNode == null ? null : new TreeNodeAndDistanceSquared(closestNode, currClosestSquared);
     }
 
     @Override
