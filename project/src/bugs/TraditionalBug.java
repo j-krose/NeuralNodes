@@ -61,10 +61,10 @@ public class TraditionalBug extends Bug
         {
             slowRounds = 0;
         }
-        if (slowRounds > 100)
-        {
-            return true;
-        }
+//        if (slowRounds > 100)
+//        {
+//            return true;
+//        }
         return false;
     }
 

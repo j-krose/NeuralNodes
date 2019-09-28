@@ -67,6 +67,7 @@ public class MainDrawPanel extends JPanel
             return;
         }
 
+        int killerCount = 0;
         for (Bug bug : currBugList_)
         {
             if (bug.isReproducer())
@@ -85,6 +86,7 @@ public class MainDrawPanel extends JPanel
             {
                 graphics.setColor(Color.BLACK);
                 drawBug(graphics, bug, scale, Bug.BUG_RADIUS - 2.0);
+                killerCount++;
             }
         }
 
@@ -92,7 +94,8 @@ public class MainDrawPanel extends JPanel
         double fps = 1000.0 / ((double) Math.max(1, elapsed));
         rollingFPS_ = (0.999 * rollingFPS_) + 0.001 * (fps);
         graphics.drawString("FPS: " + FORMATTER.format(rollingFPS_), 5 + border, 15 + border);
-        graphics.drawString("Bugs: " + currBugList_.size(), 70 + border, 15 + border);
+        graphics.drawString("Sheep: " + (currBugList_.size() - killerCount), 70 + border, 15 + border);
+        graphics.drawString("Wolves: " + killerCount, 150 + border, 15 + border);
     }
 
     private static void drawBug(Graphics2D graphics, Bug bug, double scale, double size)

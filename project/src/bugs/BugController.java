@@ -74,7 +74,7 @@ public class BugController
 
     private void updateBugs()
     {
-        long nanos0 = System.nanoTime();
+        ConcurrentTimers.Checkpoint checkpoint = new ConcurrentTimers.Checkpoint();
         long millis = System.currentTimeMillis();
         long ellapsed = millis - currMillis_;
         currMillis_ = millis;
@@ -100,8 +100,7 @@ public class BugController
             }
         }
 
-        long nanos1 = System.nanoTime();
-        ConcurrentTimers.get().addToTimer("bug solves", nanos0, nanos1);
+        checkpoint = ConcurrentTimers.get().addToTimer("bug solves", checkpoint);
 
         bugTree_.clear();
         bugsWhichReproducedThisRound_.clear();
@@ -113,10 +112,15 @@ public class BugController
             bug.updateStateAfterReproduction();
         }
 
-        long nanos2 = System.nanoTime();
-        ConcurrentTimers.get().addToTimer("update lists", nanos1, nanos2);
+        checkpoint = ConcurrentTimers.get().addToTimer("update lists", checkpoint);
 
-        if (round_ % 250 == 0)
+        printTimers();
+    }
+
+    @SuppressWarnings("unused")
+    private void printTimers()
+    {
+        if (ConcurrentTimers.USE_TIMERS && round_ % 250 == 0)
         {
             System.out.println("==========");
             System.out.println("Bug solves   " + ConcurrentTimers.get().getTimer("bug solves"));

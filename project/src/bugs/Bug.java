@@ -14,7 +14,7 @@ public abstract class Bug
 {
     public static final ExecutorService SHARED_BUG_TICK_EXECUTOR = Executors.newWorkStealingPool();
 
-    public static final double BUG_RADIUS = 4.0;
+    public static final double BUG_RADIUS = 7;
     public static final double BUG_RADIUS_SQUARED = Math.pow(BUG_RADIUS, 2.0);
     private static final double EYE_CONE_ANGLE = 180.0 * (Math.PI / 180.0); // Find a good minimum for this
     private static final double TIME_DIVISOR = 30.0;
@@ -123,15 +123,14 @@ public abstract class Bug
     {
         return SHARED_BUG_TICK_EXECUTOR.submit(() ->
         {
-            long nano0 = System.nanoTime();
+            ConcurrentTimers.Checkpoint checkpoint = new ConcurrentTimers.Checkpoint();
             onTickStart();
 
             Vector2d boardSize = Sizes.get().getBoardSize();
 
             // Bugs in trees are copies. Ok to look into them while multithreading
             KDTree2d<BugType>.LocationAndData otherBugData = bugTree.findNearestExcludingSame(position_);
-            long nano1 = System.nanoTime();
-            ConcurrentTimers.get().addToTimer("BugSolve1", nano0, nano1);
+            checkpoint = ConcurrentTimers.get().addToTimer("BugSolve1", checkpoint);
             Vector2d otherBugPos = otherBugData.getLocation();
 
             // must be calculated before any movement
@@ -173,14 +172,12 @@ public abstract class Bug
             double same = getBugType() == otherBugData.getData() ? distanceSigmoid : 0.0;
             double different = getBugType() != otherBugData.getData() ? distanceSigmoid : 0.0;
 
-            long nano2 = System.nanoTime();
-            ConcurrentTimers.get().addToTimer("BugSolve2", nano1, nano2);
+            checkpoint = ConcurrentTimers.get().addToTimer("BugSolve2", checkpoint);
 
             net_.setLayerValues(0, new double[] { rightWall, topWall, leftWall, bottomWall, rightEye, topEye, leftEye, bottomEye, same, different });
             net_.solveNet();
 
-            long nano3 = System.nanoTime();
-            ConcurrentTimers.get().addToTimer("BugSolve3", nano2, nano3);
+            checkpoint = ConcurrentTimers.get().addToTimer("BugSolve3", checkpoint);
 
             double[] movement = net_.getResultLayer();
             double outAngle = movement[0] * 2.0 * Math.PI;
@@ -211,8 +208,7 @@ public abstract class Bug
                 fixPosition();
             }
 
-            long nano4 = System.nanoTime();
-            ConcurrentTimers.get().addToTimer("BugSolve4", nano3, nano4);
+            checkpoint = ConcurrentTimers.get().addToTimer("BugSolve4", checkpoint);
         });
     }
 
