@@ -1,6 +1,7 @@
 package bugs;
 
 import java.awt.Color;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -14,8 +15,7 @@ public abstract class Bug
 {
     public static final ExecutorService SHARED_BUG_TICK_EXECUTOR = Executors.newWorkStealingPool();
 
-    public static final double BUG_RADIUS = 7;
-    public static final double BUG_RADIUS_SQUARED = Math.pow(BUG_RADIUS, 2.0);
+//    public static final double BUG_RADIUS_SQUARED = Math.pow(BUG_RADIUS, 2.0);
     private static final double EYE_CONE_ANGLE = 180.0 * (Math.PI / 180.0); // Find a good minimum for this
     private static final double TIME_DIVISOR = 30.0;
 
@@ -68,15 +68,16 @@ public abstract class Bug
         net_ = new NeuralNet(genome_);
     }
 
+    @Override
     public abstract Bug clone();
 
     public abstract BugType getBugType();
 
     private void fixPosition()
     {
-        Vector2d boardSize = Sizes.get().getBoardSize();
-        position_.setX(Math.max(BUG_RADIUS, Math.min(boardSize.getX() - BUG_RADIUS, position_.getX())));
-        position_.setY(Math.max(BUG_RADIUS, Math.min(boardSize.getY() - BUG_RADIUS, position_.getY())));
+        Vector2d boardSize = Sizes.getBoardSize();
+        position_.setX(Math.max(GameStates.getBugRadius(), Math.min(boardSize.getX() - GameStates.getBugRadius(), position_.getX())));
+        position_.setY(Math.max(GameStates.getBugRadius(), Math.min(boardSize.getY() - GameStates.getBugRadius(), position_.getY())));
     }
 
     public Vector2d getPosition()
@@ -126,21 +127,24 @@ public abstract class Bug
             ConcurrentTimers.Checkpoint checkpoint = new ConcurrentTimers.Checkpoint();
             onTickStart();
 
-            Vector2d boardSize = Sizes.get().getBoardSize();
+            Vector2d boardSize = Sizes.getBoardSize();
 
             // Bugs in trees are copies. Ok to look into them while multithreading
             KDTree2d<BugType>.LocationAndData otherBugData = bugTree.findNearestExcludingSame(position_);
-            checkpoint = ConcurrentTimers.get().addToTimer("BugSolve1", checkpoint);
+            checkpoint = ConcurrentTimers.addToTimer("BugSolve1", checkpoint);
             Vector2d otherBugPos = otherBugData.getLocation();
 
             // must be calculated before any movement
-            boolean touchingOtherBug = position_.subtract(otherBugPos).normSquared() < (BUG_RADIUS_SQUARED * 4.0);
+            boolean touchingOtherBug = position_.subtract(otherBugPos).normSquared() < (GameStates.getBugRadiusSquared() * 4.0);
+
+            double sigmoidTightness = GameStates.getBugRadius() * .02;
+            double sigmoidRange = GameStates.getBugRadius() * 5;
 
             // First four inputs are closeness to walls
-            double leftWall = sigmoid(false, 0.1, 25, position_.getX());
-            double rightWall = sigmoid(true, 0.1, boardSize.getX() - 25, position_.getX());
-            double bottomWall = sigmoid(false, 0.1, 25, position_.getY());
-            double topWall = sigmoid(true, 0.1, boardSize.getY() - 25, position_.getY());
+            double leftWall = sigmoid(false, sigmoidTightness, sigmoidRange, position_.getX());
+            double rightWall = sigmoid(true, sigmoidTightness, boardSize.getX() - sigmoidRange, position_.getX());
+            double bottomWall = sigmoid(false, sigmoidTightness, sigmoidRange, position_.getY());
+            double topWall = sigmoid(true, sigmoidTightness, boardSize.getY() - sigmoidRange, position_.getY());
 
             // Next four inputs are four "eyes" with cones pointing right, up, left, and
             // down. The value input to the neurons corresponding to these cones is the
@@ -148,7 +152,7 @@ public abstract class Bug
             // away from the center of the cone
             Vector2d toOtherBug = otherBugPos.subtract(position_);
             double distance = toOtherBug.norm();
-            double distanceSigmoid = sigmoid(false, 0.1, 25, distance);
+            double distanceSigmoid = sigmoid(false, sigmoidTightness, sigmoidRange, distance);
             Vector2d dirToOtherBug = toOtherBug.normalize();
             double angle = Math.atan2(dirToOtherBug.getY(), dirToOtherBug.getX());
             if (angle < 0)
@@ -172,24 +176,24 @@ public abstract class Bug
             double same = getBugType() == otherBugData.getData() ? distanceSigmoid : 0.0;
             double different = getBugType() != otherBugData.getData() ? distanceSigmoid : 0.0;
 
-            checkpoint = ConcurrentTimers.get().addToTimer("BugSolve2", checkpoint);
+            checkpoint = ConcurrentTimers.addToTimer("BugSolve2", checkpoint);
 
             net_.setLayerValues(0, new double[] { rightWall, topWall, leftWall, bottomWall, rightEye, topEye, leftEye, bottomEye, same, different });
             net_.solveNet();
 
-            checkpoint = ConcurrentTimers.get().addToTimer("BugSolve3", checkpoint);
+            checkpoint = ConcurrentTimers.addToTimer("BugSolve3", checkpoint);
 
             double[] movement = net_.getResultLayer();
             double outAngle = movement[0] * 2.0 * Math.PI;
             Vector2d movementVec = new Vector2d(Math.cos(outAngle), Math.sin(outAngle));
             movementVec = movementVec.scale(movement[1] * 5.0);
 
-            double timeScale = ((double) millisElapsed) / TIME_DIVISOR;
+            double timeScale = (millisElapsed) / TIME_DIVISOR;
             position_ = position_.add(movementVec.scale(timeScale));
 
             // Death conditions
-            boolean outOfBoundsX = position_.getX() < BUG_RADIUS || position_.getX() > (boardSize.getX() - BUG_RADIUS);
-            boolean outOfBoundsY = position_.getY() < BUG_RADIUS || position_.getY() > (boardSize.getY() - BUG_RADIUS);
+            boolean outOfBoundsX = position_.getX() < GameStates.getBugRadius() || position_.getX() > (boardSize.getX() - GameStates.getBugRadius());
+            boolean outOfBoundsY = position_.getY() < GameStates.getBugRadius() || position_.getY() > (boardSize.getY() - GameStates.getBugRadius());
             if (outOfBoundsX || outOfBoundsY)
             {
                 isAlive_ = false;
@@ -208,8 +212,15 @@ public abstract class Bug
                 fixPosition();
             }
 
-            checkpoint = ConcurrentTimers.get().addToTimer("BugSolve4", checkpoint);
+            checkpoint = ConcurrentTimers.addToTimer("BugSolve4", checkpoint);
         });
+    }
+
+    // Subclasses can override this if bugs "importance" is something other than
+    // just age
+    public static void sortBugs(List<Bug> bugList)
+    {
+
     }
 
     // Subclasses can override this if they need to do something at the beginning of

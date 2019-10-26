@@ -4,8 +4,6 @@ import utils.Vector2d;
 
 public class KillerBug extends Bug
 {
-    private static final int LIFE_FORCE = 60 /* ~ fps */ * 20 /* seconds */;
-    private static final int NUM_KILLS_TO_REPRODUCE = 5;
     private boolean killedThisRound_ = false;
     private int sinceLastKill_ = 0;
     private int numKills_ = 0;
@@ -29,6 +27,7 @@ public class KillerBug extends Bug
         super(bug1, bug2, position);
     }
 
+    @Override
     public KillerBug clone()
     {
         return new KillerBug(this);
@@ -46,7 +45,7 @@ public class KillerBug extends Bug
 
     public boolean hasKilledEnoughToReproduce()
     {
-        return numKillsSinceLastReproduction_ >= NUM_KILLS_TO_REPRODUCE;
+        return numKillsSinceLastReproduction_ >= GameStates.getKillerNKillsToReproduce();
     }
 
     @Override
@@ -69,6 +68,16 @@ public class KillerBug extends Bug
     }
 
     @Override
+    public boolean isAlive()
+    {
+        if (!GameStates.getKillersExist())
+        {
+            return false;
+        }
+        return super.isAlive();
+    }
+
+    @Override
     protected boolean killedByBug(boolean touchingClosestBug, BugType closestBugType)
     {
         if (touchingClosestBug)
@@ -86,7 +95,7 @@ public class KillerBug extends Bug
                 return false;
             }
         }
-        if (sinceLastKill_ > LIFE_FORCE) // TODO: put this somewhere else
+        if (sinceLastKill_ > 60 /* ~ fps */ * GameStates.getKillerStarvationSeconds()) // TODO: put this somewhere else
         {
             return true;
         }

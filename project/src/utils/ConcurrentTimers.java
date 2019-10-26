@@ -8,19 +8,12 @@ public class ConcurrentTimers
 {
     public static final boolean USE_TIMERS = false;
 
-    private static ConcurrentTimers SINGLETON;
+    private static ConcurrentMap<String, AtomicLong> timers_;
 
     public static void initialize()
     {
-        SINGLETON = new ConcurrentTimers();
+        timers_ = new ConcurrentHashMap<>();
     }
-
-    public static ConcurrentTimers get()
-    {
-        return SINGLETON;
-    }
-
-    ConcurrentMap<String, AtomicLong> timers_;
 
     public static class Checkpoint
     {
@@ -39,12 +32,7 @@ public class ConcurrentTimers
         }
     }
 
-    private ConcurrentTimers()
-    {
-        timers_ = new ConcurrentHashMap<>();
-    }
-
-    public Checkpoint addToTimer(String timer, Checkpoint startCheckpoint)
+    public static Checkpoint addToTimer(String timer, Checkpoint startCheckpoint)
     {
         timers_.putIfAbsent(timer, new AtomicLong(0));
 
@@ -54,7 +42,7 @@ public class ConcurrentTimers
         return now;
     }
 
-    public long getTimer(String timer)
+    public static long getTimer(String timer)
     {
         AtomicLong total = timers_.get(timer);
         return total != null ? total.get() : 0;

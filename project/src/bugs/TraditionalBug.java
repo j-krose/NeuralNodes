@@ -4,7 +4,6 @@ import utils.Vector2d;
 
 public class TraditionalBug extends Bug
 {
-    private static final int MIN_REPRODUCTION_AGE = 60 /* ~ fps */ * 20 /* seconds */;
     private final int birthRound_;
     private int slowRounds = 0;
 
@@ -26,6 +25,7 @@ public class TraditionalBug extends Bug
         birthRound_ = birthRound;
     }
 
+    @Override
     public TraditionalBug clone()
     {
         return new TraditionalBug(this);
@@ -41,7 +41,8 @@ public class TraditionalBug extends Bug
         // In addition to all the bugs that are actually old enough to reproduce,
         // consider all bugs born at the beginning of the game
         // "old enough to reproduce"
-        return (currRound - birthRound_ > MIN_REPRODUCTION_AGE) || birthRound_ < MIN_REPRODUCTION_AGE;
+        int minReproductionAge = 60 /* ~ fps */ * GameStates.getTraditionalReproductionSeconds();
+        return (currRound - birthRound_ > minReproductionAge) || birthRound_ < minReproductionAge;
     }
 
     @Override
@@ -53,18 +54,21 @@ public class TraditionalBug extends Bug
     @Override
     protected boolean killedBySpeed(double rawSpeed)
     {
-        if (Math.abs(rawSpeed) < .1)
+        if (GameStates.getTraditionalMustMove())
         {
-            slowRounds++;
+            if (Math.abs(rawSpeed) < .1)
+            {
+                slowRounds++;
+            }
+            else
+            {
+                slowRounds = 0;
+            }
+            if (slowRounds > 100)
+            {
+                return true;
+            }
         }
-        else
-        {
-            slowRounds = 0;
-        }
-//        if (slowRounds > 100)
-//        {
-//            return true;
-//        }
         return false;
     }
 

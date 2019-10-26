@@ -13,6 +13,7 @@ import javax.swing.JPanel;
 
 import bugs.Bug;
 import bugs.BugType;
+import bugs.GameStates;
 import utils.Sizes;
 import utils.Vector2d;
 
@@ -49,11 +50,11 @@ public class MainDrawPanel extends JPanel
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         Dimension currSize = getSize();
-        int border = Sizes.get().getBorder();
-        Vector2d boardSize = Sizes.get().getBoardSize(); // TODO: Change board size on resize
+        int border = Sizes.getBorder();
+        Vector2d boardSize = Sizes.getBoardSize(); // TODO: Change board size on resize
         currSize.setSize(currSize.getWidth() - (border * 2), currSize.getHeight() - (border * 2));
-        double xScale = ((double) currSize.getWidth()) / boardSize.getX();
-        double yScale = ((double) currSize.getHeight()) / boardSize.getY();
+        double xScale = (currSize.getWidth()) / boardSize.getX();
+        double yScale = (currSize.getHeight()) / boardSize.getY();
         double scale = xScale < yScale ? xScale : yScale;
 
         graphics.setColor(Color.GRAY);
@@ -70,28 +71,29 @@ public class MainDrawPanel extends JPanel
         int killerCount = 0;
         for (Bug bug : currBugList_)
         {
+            boolean isKiller = bug.getBugType() == BugType.KILLER;
             if (bug.isReproducer())
             {
-                Color ringColor = bug == currBugList_.get(0) ? Color.WHITE : Color.RED;
+                Color ringColor = (bug == currBugList_.get(0) || (isKiller && killerCount == 0)) ? Color.WHITE : Color.RED;
                 graphics.setColor(ringColor);
-                drawBug(graphics, bug, scale, Bug.BUG_RADIUS + 3.0);
+                drawBug(graphics, bug, scale, GameStates.getBugRadius() + 3.0);
                 graphics.setColor(Color.BLACK);
-                drawBug(graphics, bug, scale, Bug.BUG_RADIUS + 2.0);
+                drawBug(graphics, bug, scale, GameStates.getBugRadius() + 2.0);
             }
 
             graphics.setColor(bug.getColor());
-            drawBug(graphics, bug, scale, Bug.BUG_RADIUS);
+            drawBug(graphics, bug, scale, GameStates.getBugRadius());
 
-            if (bug.getBugType() == BugType.KILLER)
+            if (isKiller)
             {
                 graphics.setColor(Color.BLACK);
-                drawBug(graphics, bug, scale, Bug.BUG_RADIUS - 2.0);
+                drawBug(graphics, bug, scale, GameStates.getBugRadius() - 2.0);
                 killerCount++;
             }
         }
 
         graphics.setColor(Color.WHITE);
-        double fps = 1000.0 / ((double) Math.max(1, elapsed));
+        double fps = 1000.0 / (Math.max(1, elapsed));
         rollingFPS_ = (0.999 * rollingFPS_) + 0.001 * (fps);
         graphics.drawString("FPS: " + FORMATTER.format(rollingFPS_), 5 + border, 15 + border);
         graphics.drawString("Sheep: " + (currBugList_.size() - killerCount), 70 + border, 15 + border);
@@ -100,7 +102,7 @@ public class MainDrawPanel extends JPanel
 
     private static void drawBug(Graphics2D graphics, Bug bug, double scale, double size)
     {
-        int border = Sizes.get().getBorder();
+        int border = Sizes.getBorder();
         graphics.fillOval((int) ((bug.getPosition().getX() - size) * scale) + border, (int) ((bug.getPosition().getY() - size) * scale) + border, (int) (size * 2.0 * scale),
                 (int) (size * 2.0 * scale));
     }

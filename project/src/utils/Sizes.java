@@ -9,20 +9,17 @@ import javax.swing.JFrame;
 
 public class Sizes
 {
-    public static Sizes SINGLETON;
+    public static Sizes SINGLETON_;
 
     public static void initialize()
     {
-        SINGLETON = new Sizes();
+        SINGLETON_ = new Sizes();
     }
 
-    public static Sizes get()
-    {
-        return SINGLETON;
-    }
-
-    public static final int BORDER = 5;
+    private static final int BORDER = 5;
     private static final int NET_PANEL_WIDTH = 400;
+    private static final int BIAS_PANEL_HEIGHT = 30;
+    private static final int ADJUSTMENTS_PANEL_HEIGHT = 200;
 
     private final int totalWidth_;
     private final int totalHeight_;
@@ -41,52 +38,67 @@ public class Sizes
 
     }
 
-    public int getTotalWidth()
+    public static int getTotalWidth()
     {
-        return totalWidth_;
+        return SINGLETON_.totalWidth_;
     }
 
-    public int getTotalHeight()
+    public static int getTotalHeight()
     {
-        return totalHeight_;
+        return SINGLETON_.totalHeight_;
     }
 
-    public Dimension getTotal()
+    public static Dimension getTotal()
     {
         return new Dimension(getTotalWidth(), getTotalHeight());
     }
 
-    public int getBorder()
+    public static int getBorder()
     {
         return BORDER;
     }
 
-    public int getBoardWidthWithBorder()
+    public static int getBiasPanelHeight()
     {
-        return totalWidth_ - NET_PANEL_WIDTH;
+        return BIAS_PANEL_HEIGHT;
     }
 
-    public int getBoardWidth()
+    public static int getAdjustmentPanelHeight()
+    {
+        return ADJUSTMENTS_PANEL_HEIGHT;
+    }
+
+    public static int getNetDrawPanelHeight()
+    {
+        return getTotalHeight() - getBiasPanelHeight() - getAdjustmentPanelHeight();
+    }
+
+    public static int getBoardWidthWithBorder()
+    {
+        return getTotalWidth() - NET_PANEL_WIDTH;
+    }
+
+    public static int getBoardWidth()
     {
         return getBoardWidthWithBorder() - (BORDER * 2);
     }
 
-    public int getBoardHeightWithBorder()
+    public static int getBoardHeightWithBorder()
     {
-        return totalHeight_;
+        return getTotalHeight();
     }
 
-    public int getBoardHeight()
+    public static int getBoardHeight()
     {
         return getBoardHeightWithBorder() - (BORDER * 2);
     }
 
-    public Vector2d getBoardSize()
+    public static Vector2d getBoardSize()
     {
         return new Vector2d(getBoardWidth(), getBoardHeight());
     }
 
-    public int getNetPanelWidth()
+    public static int getNetPanelWidth()
     {
         return NET_PANEL_WIDTH - (BORDER * 2);
     }
