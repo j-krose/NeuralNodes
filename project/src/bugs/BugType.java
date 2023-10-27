@@ -1,6 +1,6 @@
 package bugs;
 
-public enum BugType
-{
-    TRADITIONAL, KILLER
+public enum BugType {
+  TRADITIONAL,
+  KILLER
 }
