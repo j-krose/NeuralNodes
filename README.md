@@ -28,4 +28,7 @@ the instructions in the README to add the plugin to eclipse.
 
 Turn on save actions (Preferences > Java > Editor > Save Actions) to format edited lines, and organize inputs.
 
+You can also use eclipse-java-google-style.xml as the style in eclipse (Preferences > Java > Code Style > Formatter), so
+that the default behaviors of eclipse to not clash with the styling it applies on-save.
+
 Enjoy!
