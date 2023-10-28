@@ -1,5 +1,6 @@
 package bugs;
 
+import utils.KDTree2d;
 import utils.Vector2d;
 
 public class KillerBug extends Bug {
@@ -50,6 +51,13 @@ public class KillerBug extends Bug {
   protected void onTickStart() {
     killedThisRound_ = false;
     sinceLastKill_++;
+  }
+
+  @Override
+  protected double calculateReproductionScore(KDTree2d<BugType> bugTree, int round) {
+    // Once bug reaches GameStates.getKillerNKillsToReproduce() kills, it should have a reproduction
+    // score of `1`, so that it is allowed to reproduce
+    return numKillsSinceLastReproduction_ - (GameStates.getKillerNKillsToReproduce() - 1);
   }
 
   @Override

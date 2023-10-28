@@ -1,7 +1,6 @@
 package bugs;
 
 import java.awt.Color;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -20,7 +19,7 @@ public abstract class Bug {
 
   private Vector2d position_;
   private final Color color_;
-  private boolean isReproducer_ = false;
+  private double reproductionScore_ = 0;
   private final Genome genome_;
   private final NeuralNet net_;
   private boolean isAlive_ = true;
@@ -40,7 +39,7 @@ public abstract class Bug {
   public Bug(Bug other) {
     position_ = new Vector2d(other.position_);
     color_ = new Color(other.color_.getRGB());
-    isReproducer_ = other.isReproducer_;
+    reproductionScore_ = other.reproductionScore_;
     genome_ = other.genome_;
     net_ = new NeuralNet(other.net_);
     isAlive_ = other.isAlive_;
@@ -104,12 +103,8 @@ public abstract class Bug {
     return color_;
   }
 
-  public void setIsReproducer(boolean isReproducer) {
-    isReproducer_ = isReproducer;
-  }
-
-  public boolean isReproducer() {
-    return isReproducer_;
+  public double getReproductionScore() {
+    return reproductionScore_;
   }
 
   public boolean isAlive() {
@@ -240,9 +235,12 @@ public abstract class Bug {
         });
   }
 
-  // Subclasses can override this if bugs "importance" is something other than
-  // just age
-  public static void sortBugs(List<Bug> bugList) {}
+  // Subclasses must override this to calculate a new reproduction score after all bugs have ticked
+  protected abstract double calculateReproductionScore(KDTree2d<BugType> bugTree, int round);
+
+  public void updateReproductionScore(KDTree2d<BugType> bugTree, int round) {
+    reproductionScore_ = calculateReproductionScore(bugTree, round);
+  }
 
   // Subclasses can override this if they need to do something at the beginning of
   // the tick

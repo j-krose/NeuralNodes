@@ -1,8 +1,6 @@
 package bugs;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -11,9 +9,11 @@ import java.util.TimerTask;
 import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Future;
 import java.util.concurrent.SubmissionPublisher;
-import java.util.function.Function;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import utils.ConcurrentTimers;
 import utils.KDTree2d;
+import utils.Pair;
 import utils.Sizes;
 import utils.Vector2d;
 
@@ -39,7 +39,7 @@ public class BugController {
   // updating agains the previous state.
   KDTree2d<BugType> bugTree_;
   List<Bug> bugsWhichReproducedThisRound_;
-  SubmissionPublisher<List<Bug>> tickCompletedPublisher_;
+  SubmissionPublisher<TickCompletedMessage> tickCompletedPublisher_;
 
   public BugController() {
     reset();
@@ -112,16 +112,27 @@ public class BugController {
     // bugs before creating any new bugs, or the new bugs may overlap when they try
     // to use getRandomAvailableLocation
     bugTree_.clear();
-    // No sort necessary, oldest should be first
-    pruneDeadBugsAndSortBugList(traditionalBugList_, null);
-    // Sort by number of kills, with highest being first in the list
-    pruneDeadBugsAndSortBugList(
-        killerBugList_,
-        (KillerBug bug1, KillerBug bug2) -> (bug2.getNumKills() - bug1.getNumKills()));
+    rebuildStateAfterTick(traditionalBugList_);
+    rebuildStateAfterTick(killerBugList_);
 
     bugsWhichReproducedThisRound_.clear();
-    makeNewTraditionalBugs();
-    makeNewKillerBugs();
+    makeNewBugs(
+        traditionalBugList_,
+        (parent1, parent2) ->
+            new TraditionalBug(parent1, parent2, getRandomAvailableLocation(), round_),
+        MAX_TRADITIONAL_BUGS,
+        START_TRADITIONAL_BUGS,
+        MIN_TRADITIONAL_BUGS,
+        () -> new TraditionalBug(getRandomAvailableLocation(), round_));
+    if (GameStates.getKillersExist()) {
+      makeNewBugs(
+          killerBugList_,
+          (parent1, parent2) -> new KillerBug(parent1, parent2, getRandomAvailableLocation()),
+          MAX_KILLER_BUGS,
+          START_KILLER_BUGS,
+          MIN_KILLER_BUGS,
+          () -> new KillerBug(getRandomAvailableLocation()));
+    }
 
     for (Bug bug : bugsWhichReproducedThisRound_) {
       bug.updateStateAfterReproduction();
@@ -163,121 +174,124 @@ public class BugController {
     bugsWhichReproducedThisRound_.add(parent2);
   }
 
-  private <SpecificBug extends Bug> void pruneDeadBugsAndSortBugList(
-      List<SpecificBug> relevantBugList, Comparator<SpecificBug> comparator) {
-    List<SpecificBug> oldList = new LinkedList<>(relevantBugList);
+  // Does a few important things:
+  // 1. Removes dead bugs
+  // 2. Recalculates reproduction scores
+  // 3. Re-sorts bug list based on reproduction score
+  // 4. Rebuilds KD tree with new locations
+  private <SpecificBug extends Bug> void rebuildStateAfterTick(List<SpecificBug> relevantBugList) {
+    // Copy to temporary list and clear master list
+    List<SpecificBug> tempList = new LinkedList<>(relevantBugList);
     relevantBugList.clear();
-    if (comparator != null) {
-      Collections.sort(oldList, comparator);
+    
+    // Prune dead bugs
+    tempList.removeIf((bug) -> !bug.isAlive());
+
+    // Re-insert into bugTree_ and relevantBugList
+    for (SpecificBug bug : tempList) {
+      addBugToEcosystem(bug, relevantBugList);
     }
-    for (SpecificBug bug : oldList) {
-      if (bug.isAlive()) {
-        addBugToEcosystem(bug, relevantBugList);
-      }
+
+    // Calculate new reproduction scores (must be done after adding all bugs to bugTree_)
+    for (SpecificBug bug : relevantBugList) {
+      bug.updateReproductionScore(bugTree_, round_);
     }
+
+    // Re-sort relevantBugList by reproduction score
+    //    Collections.sort(relevantBugList, Comparator.comparingDouble(Bug::getReproductionScore));
   }
 
   private <SpecificBug extends Bug> void makeRandomBugsUpToMinimum(
       List<SpecificBug> relevantBugList,
       int startMinBugs,
       int inPlayMinBugs,
-      Function<Void, SpecificBug> bugConstructor) {
+      Supplier<SpecificBug> newRandomBug) {
     // We can have no bugs for a few reasons.
     // 1) The beginning of the game
     // 2) They all managed to coincidentally die in the same round
     // 3) The user deactivated and reactivated a specific kind of bug
     int minBugs = (relevantBugList.size() == 0) ? startMinBugs : inPlayMinBugs;
     while (relevantBugList.size() < minBugs) {
-      SpecificBug newBug = bugConstructor.apply(null);
+      SpecificBug newBug = newRandomBug.get();
       addBugToEcosystem(newBug, relevantBugList);
     }
   }
 
-  private void makeNewTraditionalBugs() {
-    List<TraditionalBug> reproduceCandidates = new ArrayList<>();
-    int oldestBugBirthRound = -1;
-    for (TraditionalBug bug : traditionalBugList_) {
-      if (oldestBugBirthRound == -1) {
-        oldestBugBirthRound = bug.getBirthRound();
-      }
-
-      // Oldest 5 bugs (or as many as are tied for first) which qualify to reproduce
-      if (bug.isOldEnoughToReproduct(round_)
-          && (reproduceCandidates.size() < 5 || bug.getBirthRound() == oldestBugBirthRound)) {
-        reproduceCandidates.add(bug);
-        bug.setIsReproducer(true);
-      } else {
-        bug.setIsReproducer(false);
-      }
-    }
-
-    // Make one new bug from reproduction per round
-    if (reproduceCandidates.size() != 0 && traditionalBugList_.size() < MAX_TRADITIONAL_BUGS) {
-      TraditionalBug parent1 =
-          reproduceCandidates.get(SHARED_RANDOM.nextInt(reproduceCandidates.size()));
-      TraditionalBug parent2 =
-          reproduceCandidates.get(SHARED_RANDOM.nextInt(reproduceCandidates.size()));
-      TraditionalBug newBug =
-          new TraditionalBug(parent1, parent2, getRandomAvailableLocation(), round_);
-      addBugToEcosystem(newBug, parent1, parent2, traditionalBugList_);
-    }
-
-    // Refill with random bugs as necessary
-    makeRandomBugsUpToMinimum(
-        traditionalBugList_,
-        START_TRADITIONAL_BUGS,
-        MIN_TRADITIONAL_BUGS,
-        (vOiD) -> new TraditionalBug(getRandomAvailableLocation(), round_));
-  }
-
-  private void makeNewKillerBugs() {
-    if (!GameStates.getKillersExist()) {
+  private <SpecificBug extends Bug> void makeNewBugs(
+      List<SpecificBug> relevantBugList,
+      BiFunction<SpecificBug, SpecificBug, SpecificBug> newBugByReproduction,
+      // TODO: Wrap all these options into a POJO so it is packaged together from the start
+      int maxBugs,
+      int startMinBugs,
+      int inPlayMinBugs,
+      Supplier<SpecificBug> newRandomBug) {
+    if (relevantBugList.size() >= maxBugs) {
       return;
     }
 
-    int numTopKills = -1;
-    List<KillerBug> topKillers = new ArrayList<>();
-    List<KillerBug> readyToReproduce = new ArrayList<>();
-    for (KillerBug bug : killerBugList_) {
-      if (numTopKills == -1) {
-        numTopKills = bug.getNumKills();
-      }
-
-      bug.setIsReproducer(false);
-      if (bug.getNumKills() == numTopKills) {
-        topKillers.add(bug);
-        bug.setIsReproducer(true);
-      }
-      if (bug.hasKilledEnoughToReproduce()) {
-        readyToReproduce.add(bug);
-        bug.setIsReproducer(true);
+    double totalReproductionScore = 0;
+    ArrayList<SpecificBug> reproducers = new ArrayList<>();
+    for (SpecificBug bug : relevantBugList) {
+      double bugReproductionScore = bug.getReproductionScore();
+      if (bugReproductionScore > 0.) {
+        totalReproductionScore += bug.getReproductionScore();
+        reproducers.add(bug);
       }
     }
+    
+    // TODO: Generic "pick by weight" util
+    if (reproducers.size() >= 2) {
+      // -- Make one new bug from reproduction per round
 
-    int readyToReproduceIndex = 0;
-    while (killerBugList_.size() < MAX_KILLER_BUGS
-        && readyToReproduceIndex < readyToReproduce.size()) {
-      // All bugs that are ready to reproduce will reproduce with the top killers
-      // (unless we have reached the maximum)
-      KillerBug reproducer = readyToReproduce.get(readyToReproduceIndex);
-      KillerBug topKillerToReproduceWith = topKillers.get(SHARED_RANDOM.nextInt(topKillers.size()));
-      KillerBug newBug =
-          new KillerBug(reproducer, topKillerToReproduceWith, getRandomAvailableLocation());
-      addBugToEcosystem(newBug, reproducer, topKillerToReproduceWith, killerBugList_);
+      // Find the first parent by picking a random bug, with odds of being chosen weighted by
+      // reproduction score
+      SpecificBug parent1 = null;
+      double parentOnePicker = SHARED_RANDOM.nextDouble() * totalReproductionScore;
+      for (SpecificBug bug : reproducers) {
+        parentOnePicker -= bug.getReproductionScore();
+        if (parentOnePicker <= 0) {
+          parent1 = bug;
+          break;
+        }
+      }
 
-      readyToReproduceIndex++;
+      // Find the second parent in the same way, but eliminate the first parent from participation
+      // so
+      // that there is no asexual reproduction
+      SpecificBug parent2 = null;
+      double remainingReproductionScore = totalReproductionScore - parent1.getReproductionScore();
+      double parentTwoPicker = SHARED_RANDOM.nextDouble() * remainingReproductionScore;
+      for (SpecificBug bug : reproducers) {
+        if (bug == parent1) {
+          continue;
+        }
+        parentTwoPicker -= bug.getReproductionScore();
+        if (parentTwoPicker <= 0) {
+          parent2 = bug;
+          break;
+        }
+      }
+
+      SpecificBug newBug = newBugByReproduction.apply(parent1, parent2);
+      addBugToEcosystem(newBug, parent1, parent2, relevantBugList);
     }
 
     // Refill with random bugs as necessary
-    makeRandomBugsUpToMinimum(
-        killerBugList_,
-        START_KILLER_BUGS,
-        MIN_KILLER_BUGS,
-        (vOiD) -> new KillerBug(getRandomAvailableLocation()));
+    makeRandomBugsUpToMinimum(relevantBugList, startMinBugs, inPlayMinBugs, newRandomBug);
+  }
+
+  public class TickCompletedMessage {
+    public final List<Bug> bugList;
+    public final List<Pair<Bug, Bug>> matings;
+
+    public TickCompletedMessage(List<Bug> bugList, List<Pair<Bug, Bug>> matings) {
+      this.bugList = bugList;
+      this.matings = matings;
+    }
   }
 
   private void publishCopiedBugs() {
-    List<Bug> copy = new LinkedList<>();
+    List<Bug> copy = new ArrayList<>();
     for (TraditionalBug bug : traditionalBugList_) {
       // deep copy
       copy.add(new TraditionalBug(bug));
@@ -286,10 +300,18 @@ public class BugController {
       // deep copy
       copy.add(new KillerBug(bug));
     }
-    tickCompletedPublisher_.offer(copy, (subscriber, msg) -> false);
+    List<Pair<Bug, Bug>> matings = new ArrayList<>();
+    for (int i = 0; i < bugsWhichReproducedThisRound_.size(); i += 2) {
+      // TODO: Introduce "bug id" and publish this as bug id rather than direct reference to bug
+      Bug parent1 = bugsWhichReproducedThisRound_.get(i);
+      Bug parent2 = bugsWhichReproducedThisRound_.get(i + 1);
+      matings.add(new Pair<>(parent1, parent2));
+    }
+
+    tickCompletedPublisher_.submit(new TickCompletedMessage(copy, matings));
   }
 
-  public Publisher<List<Bug>> getTickCompletedPublisher() {
+  public Publisher<TickCompletedMessage> getTickCompletedPublisher() {
     return tickCompletedPublisher_;
   }
 
