@@ -1,6 +1,5 @@
 package display;
 
-import bugs.NeuralNet;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -8,8 +7,8 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import javax.swing.JCheckBox;
 import javax.swing.JPanel;
+import bugs.NeuralNet;
 import utils.Vector2d;
 
 public class NetDrawPanel extends JPanel {
@@ -22,12 +21,6 @@ public class NetDrawPanel extends JPanel {
 
   private NeuralNet currSelectedBugNet_;
   private NeuralNet nextSelectedBugNet_;
-
-  private final JCheckBox showBiases_;
-
-  public NetDrawPanel(JCheckBox showBiases) {
-    showBiases_ = showBiases;
-  }
 
   public void repaint(NeuralNet selectedBugNet) {
     nextSelectedBugNet_ = selectedBugNet;
@@ -105,7 +98,7 @@ public class NetDrawPanel extends JPanel {
           double edgeValue =
               (nodeValues[layer][startNode]
                   * currSelectedBugNet_.getWeightAt(layer, startNode, endNode));
-          if (showBiases_.isSelected()) {
+          if (DisplayOptions.shouldShowBiases()) {
             edgeValue += currSelectedBugNet_.getBiasAt(layer + 1, endNode);
             edgeValue /= 2.5;
           }

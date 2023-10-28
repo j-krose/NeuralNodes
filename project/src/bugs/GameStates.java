@@ -4,27 +4,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import utils.OptionWithSchedulableChange;
 
 public class GameStates {
-  public static class GameStateHolder<T> {
-    private T value_;
-
+  public static class GameStateHolder<T> extends OptionWithSchedulableChange<T> {
     private GameStateHolder(T value) {
-      value_ = value;
+      super(value);
     }
 
-    private T getValue() {
-      return value_;
+    public void scheduleOptionChange(T newValue) {
+      scheduledChanges_.add(
+          new Runnable() {
+            @Override
+            public void run() {
+              setValue(newValue);
+            }
+          });
     }
-  }
-
-  public static <T> T findOptionInList(List<T> list, GameStateHolder<T> holder) {
-    for (T t : list) {
-      if (t.equals(holder.getValue())) {
-        return t;
-      }
-    }
-    return null;
   }
 
   // -- Traditional must move --
@@ -35,14 +31,15 @@ public class GameStates {
   }
 
   // -- Traditional reproduction rate --
-  public static final List<Integer> TRADITIONAL_REPRODUCTION_SECONDS_OPTIONS =
-      IntStream.rangeClosed(1, 60).boxed().collect(Collectors.toList());
-  public static GameStateHolder<Integer> TRADITIONAL_REPRODUCTION_SECONDS =
-      new GameStateHolder<>(20);
-
-  public static int getTraditionalReproductionSeconds() {
-    return TRADITIONAL_REPRODUCTION_SECONDS.getValue();
-  }
+  // TODO: Bring back once sheep reproduction behavior is refined
+  //  public static final List<Integer> TRADITIONAL_REPRODUCTION_SECONDS_OPTIONS =
+  //      IntStream.rangeClosed(1, 60).boxed().collect(Collectors.toList());
+  //  public static GameStateHolder<Integer> TRADITIONAL_REPRODUCTION_SECONDS =
+  //      new GameStateHolder<>(20);
+  //
+  //  public static int getTraditionalReproductionSeconds() {
+  //    return TRADITIONAL_REPRODUCTION_SECONDS.getValue();
+  //  }
 
   // -- Killers exist --
   public static GameStateHolder<Boolean> KILLERS_EXIST = new GameStateHolder<>(true);
@@ -90,16 +87,6 @@ public class GameStates {
   public static void initialize() {
     scheduledChanges_ = new ArrayList<>();
     scheduledReset_ = false;
-  }
-
-  public static <T> void scheduleChange(GameStateHolder<T> holder, T newValue) {
-    scheduledChanges_.add(
-        new Runnable() {
-          @Override
-          public void run() {
-            holder.value_ = newValue;
-          }
-        });
   }
 
   public static void runScheduledChanges() {

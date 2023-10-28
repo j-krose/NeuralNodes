@@ -1,26 +1,23 @@
 package display;
 
-import bugs.Bug;
-import bugs.BugController;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.util.List;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import javax.swing.BorderFactory;
-import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.WindowConstants;
+import bugs.BugController;
+import bugs.BugController.TickCompletedMessage;
 import utils.Sizes;
 
 public class MainWindow {
   private JFrame mainFrame_;
   private MainDrawPanel mainDrawPanel_;
   private NetDrawPanel netDrawPanel_;
-  private JCheckBox showBiases_;
 
   public MainWindow(BugController bugController) {
     javax.swing.SwingUtilities.invokeLater(() -> initialize(bugController));
@@ -43,9 +40,7 @@ public class MainWindow {
         new Dimension(Sizes.getBoardWidthWithBorder(), Sizes.getTotalHeight()));
     mainFrame_.getContentPane().add(mainDrawPanel_, mainDrawPanelConstraints);
 
-    showBiases_ = new JCheckBox("Include biases in display");
-
-    netDrawPanel_ = new NetDrawPanel(showBiases_);
+    netDrawPanel_ = new NetDrawPanel();
     int netPanelWidth = Sizes.getNetPanelWidth();
     GridBagConstraints netDrawPanelContraints = new GridBagConstraints();
     netDrawPanelContraints.gridx = 1;
@@ -57,7 +52,9 @@ public class MainWindow {
     mainFrame_.getContentPane().add(netDrawPanel_, netDrawPanelContraints);
 
     JPanel biasPanel = new JPanel();
-    biasPanel.add(showBiases_);
+    biasPanel.add(
+        ComponentTiedToOption.checkBoxTiedToBoolean(
+            "Include biases in display", DisplayOptions.SHOW_BIASES));
     GridBagConstraints optionPanelConstraings = new GridBagConstraints();
     optionPanelConstraings.gridx = 1;
     optionPanelConstraings.gridy = 1;
@@ -81,7 +78,7 @@ public class MainWindow {
     bugController
         .getTickCompletedPublisher()
         .subscribe(
-            new Subscriber<List<Bug>>() {
+            new Subscriber<TickCompletedMessage>() {
               private Subscription subscription_;
 
               @Override
@@ -91,9 +88,10 @@ public class MainWindow {
               }
 
               @Override
-              public void onNext(List<Bug> bugList) {
-                mainDrawPanel_.repaint(bugList);
-                netDrawPanel_.repaint(bugList.get(0).getNeuralNet());
+              public void onNext(TickCompletedMessage message) {
+                mainDrawPanel_.repaint(message);
+                // TODO: Allow user to hover and click-select but they want to view
+                netDrawPanel_.repaint(message.bugList.get(0).getNeuralNet());
                 subscription_.request(1);
               }
 
