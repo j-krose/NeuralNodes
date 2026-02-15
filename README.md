@@ -1,11 +1,38 @@
 ## Wolf in Sheep's Clothing
 
-<video src="https://github.com/user-attachments/assets/c53aeaab-87bb-49b0-9fd1-c8457ef118af" controls="controls" style="max-width: 100%;">
-</video>
-
 A program designed to showcase the Neural Nodes framework.  Each node has its own fully connected forward-propagating nonlinear [nueral net](https://en.wikipedia.org/wiki/Artificial_neural_network).  When a node is "born", the parameters of its neural net are set permanently.  The input layer of the neural net allows the node to see the direction and distance to the nearest node, the identity of the nearest node (sheep or wolf), and the distance to each of the four walls.  The input layer of then feeds through a hidden layer in which each neuron uses a [sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function) as an activation function, which then feeds to they output layer. The output of the neural net defines a direction that the node will move, and a velocity to move at.
 
 A [genetic algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) then sits on top of this structure of individual nodes.  If a node satisfies some condition (different types of nodes have different reproduction conditions), it may have the opportunity to pass on its genome, which defines the weights and biases of the neural net and the number of neurons in the hidden layer.  Node reproduction always involves the mixing of two different node geonomes, as well as a degree of random mutation, to ensure that the system is always evolving and trying new solutions.  At the beginning of the simulation, a certain number of nodes are creating using completely random genomes.  Over time, the populations in question evolve "smarter" neural nets that allow them to better solve whatever problem is framed by their reproduction critera.  In essence, the nodes with the best neual nets pass on altered versions those neural nets to future generations.  The goal is provide minimal intervention into the system and let the genetic algorithm optimize the wights and biases of the neural nets of the populations of nodes.
+
+On reset behavior is random, but starts to emerge quickly:
+
+<video src="https://github.com/user-attachments/assets/c53aeaab-87bb-49b0-9fd1-c8457ef118af" 
+  controls="controls" 
+  autoplay="autoplay" 
+  muted="muted" 
+  loop="loop" 
+  style="max-width: 100%; height: auto;">
+</video>
+
+After some time, more advance hunting and avoidance behaviors emerge:
+
+<video src="https://github.com/user-attachments/assets/55221a3b-962b-49b8-bd3c-4e656cd2f56d" 
+  controls="controls" 
+  autoplay="autoplay" 
+  muted="muted" 
+  loop="loop" 
+  style="max-width: 100%; height: auto;">
+</video>
+
+Sheep alone without wolves also form interesting patterns:
+
+<video src="https://github.com/user-attachments/assets/39c9b48b-5d5e-4844-8579-5091827f50b4" 
+  controls="controls" 
+  autoplay="autoplay" 
+  muted="muted" 
+  loop="loop" 
+  style="max-width: 100%; height: auto;">
+</video>
 
 #### Sheep and Wolves
 
