@@ -10,7 +10,7 @@ import java.util.concurrent.Flow.Publisher;
 import java.util.concurrent.Future;
 import java.util.concurrent.SubmissionPublisher;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import utils.ConcurrentTimers;
 import utils.KDTree2d;
 import utils.Pair;
@@ -20,16 +20,14 @@ import utils.Vector2d;
 public class BugController {
   public static final Random SHARED_RANDOM = new Random();
 
-  private static final int MIN_TRADITIONAL_BUGS = 4;
-  private static final int MAX_TRADITIONAL_BUGS = 10000;
-  private static final int MIN_KILLER_BUGS = 4;
-  private static final int MAX_KILLER_BUGS = 10000;
-  // Need some genetic diversity as a seed
-  private static final int START_TRADITIONAL_BUGS = 100;
-  private static final int START_KILLER_BUGS = 100;
+  private static final int START_BUGS = 100; // Need some genetic diversity as a seed
+  private static final BugCountConfig TRADITIONAL_BUG_COUNTS =
+      new BugCountConfig(START_BUGS, 4, 10000);
+  private static final BugCountConfig KILLER_BUG_COUNTS = new BugCountConfig(START_BUGS, 4, 10000);
+
   private final Timer timer_;
-  private long currMillis_;
   private int round_;
+  private long currMillis_;
 
   List<TraditionalBug> traditionalBugList_;
   List<KillerBug> killerBugList_;
@@ -55,8 +53,8 @@ public class BugController {
             round_++;
           }
         },
-        0,
-        1000 / 59);
+        0, 1000 / 60
+    );
   }
 
   private void reset() {
@@ -88,15 +86,15 @@ public class BugController {
     // Execute the round
     ConcurrentTimers.Checkpoint checkpoint = new ConcurrentTimers.Checkpoint();
     long millis = System.currentTimeMillis();
-    long ellapsed = millis - currMillis_;
+    long elapsed = millis - currMillis_;
     currMillis_ = millis;
 
     List<Future<?>> bugFutures = new LinkedList<>();
     for (TraditionalBug bug : traditionalBugList_) {
-      bugFutures.add(bug.tickBug(bugTree_, ellapsed));
+      bugFutures.add(bug.tickBug(bugTree_, elapsed));
     }
     for (KillerBug bug : killerBugList_) {
-      bugFutures.add(bug.tickBug(bugTree_, ellapsed));
+      bugFutures.add(bug.tickBug(bugTree_, elapsed));
     }
     for (Future<?> f : bugFutures) {
       try {
@@ -116,22 +114,15 @@ public class BugController {
     rebuildStateAfterTick(killerBugList_);
 
     bugsWhichReproducedThisRound_.clear();
-    makeNewBugs(
-        traditionalBugList_,
-        (parent1, parent2) ->
-            new TraditionalBug(parent1, parent2, getRandomAvailableLocation(), round_),
-        MAX_TRADITIONAL_BUGS,
-        START_TRADITIONAL_BUGS,
-        MIN_TRADITIONAL_BUGS,
-        () -> new TraditionalBug(getRandomAvailableLocation(), round_));
+
+    makeNewBugs(traditionalBugList_,
+        (parent1, parent2) -> new TraditionalBug(parent1, parent2, getRandomAvailableLocation()),
+        TRADITIONAL_BUG_COUNTS,
+        (isInitialBatch) -> new TraditionalBug(getRandomAvailableLocation(), isInitialBatch));
     if (GameStates.getKillersExist()) {
-      makeNewBugs(
-          killerBugList_,
+      makeNewBugs(killerBugList_,
           (parent1, parent2) -> new KillerBug(parent1, parent2, getRandomAvailableLocation()),
-          MAX_KILLER_BUGS,
-          START_KILLER_BUGS,
-          MIN_KILLER_BUGS,
-          () -> new KillerBug(getRandomAvailableLocation()));
+          KILLER_BUG_COUNTS, (isInitialBatch) -> new KillerBug(getRandomAvailableLocation()));
     }
 
     for (Bug bug : bugsWhichReproducedThisRound_) {
@@ -194,7 +185,7 @@ public class BugController {
 
     // Calculate new reproduction scores (must be done after adding all bugs to bugTree_)
     for (SpecificBug bug : relevantBugList) {
-      bug.updateReproductionScore(bugTree_, round_);
+      bug.updateReproductionScore();
     }
 
     // Re-sort relevantBugList by reproduction score
@@ -205,27 +196,39 @@ public class BugController {
       List<SpecificBug> relevantBugList,
       int startMinBugs,
       int inPlayMinBugs,
-      Supplier<SpecificBug> newRandomBug) {
+      // newRandomBug takes isInitialBatch and returns a bug
+      Function<Boolean, SpecificBug> newRandomBug) {
     // We can have no bugs for a few reasons.
     // 1) The beginning of the game
     // 2) They all managed to coincidentally die in the same round
     // 3) The user deactivated and reactivated a specific kind of bug
-    int minBugs = (relevantBugList.size() == 0) ? startMinBugs : inPlayMinBugs;
+    boolean isInitialBatch = (relevantBugList.size() == 0);
+    int minBugs = isInitialBatch ? startMinBugs : inPlayMinBugs;
     while (relevantBugList.size() < minBugs) {
-      SpecificBug newBug = newRandomBug.get();
+      SpecificBug newBug = newRandomBug.apply(isInitialBatch);
       addBugToEcosystem(newBug, relevantBugList);
+    }
+  }
+
+  private static class BugCountConfig {
+    private final int initialBugs_;
+    private final int minBugs_;
+    private final int maxBugs_;
+
+    private BugCountConfig(int initialBugs, int minBugs, int maxBugs) {
+      this.initialBugs_ = initialBugs;
+      this.minBugs_ = minBugs;
+      this.maxBugs_ = maxBugs;
     }
   }
 
   private <SpecificBug extends Bug> void makeNewBugs(
       List<SpecificBug> relevantBugList,
       BiFunction<SpecificBug, SpecificBug, SpecificBug> newBugByReproduction,
-      // TODO: Wrap all these options into a POJO so it is packaged together from the start
-      int maxBugs,
-      int startMinBugs,
-      int inPlayMinBugs,
-      Supplier<SpecificBug> newRandomBug) {
-    if (relevantBugList.size() >= maxBugs) {
+      BugCountConfig bugCountConfig,
+      // Function(isInitialBatch) => Bug
+      Function<Boolean, SpecificBug> newRandomBug) {
+    if (relevantBugList.size() >= bugCountConfig.maxBugs_) {
       return;
     }
 
@@ -277,7 +280,8 @@ public class BugController {
     }
 
     // Refill with random bugs as necessary
-    makeRandomBugsUpToMinimum(relevantBugList, startMinBugs, inPlayMinBugs, newRandomBug);
+    makeRandomBugsUpToMinimum(relevantBugList, bugCountConfig.initialBugs_, bugCountConfig.minBugs_,
+        newRandomBug);
   }
 
   public class TickCompletedMessage {

@@ -4,6 +4,23 @@ A program designed to showcase the Neural Nodes framework.  Each node has its ow
 
 A [genetic algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) then sits on top of this structure of individual nodes.  If a node satisfies some condition (different types of nodes have different reproduction conditions), it may have the opportunity to pass on its genome, which defines the weights and biases of the neural net and the number of neurons in the hidden layer.  Node reproduction always involves the mixing of two different node geonomes, as well as a degree of random mutation, to ensure that the system is always evolving and trying new solutions.  At the beginning of the simulation, a certain number of nodes are creating using completely random genomes.  Over time, the populations in question evolve "smarter" neural nets that allow them to better solve whatever problem is framed by their reproduction critera.  In essence, the nodes with the best neual nets pass on altered versions those neural nets to future generations.  The goal is provide minimal intervention into the system and let the genetic algorithm optimize the wights and biases of the neural nets of the populations of nodes.
 
+#### Examples
+
+Nodes move randomly on restart, but behavior starts to develop quickly:
+
+<video src="https://github.com/user-attachments/assets/c53aeaab-87bb-49b0-9fd1-c8457ef118af" muted autoplay loop playsinline style="max-width: 100%;">
+</video>
+
+After some time, more advance hunting and avoidance behaviors emerge:
+
+<video src="https://github.com/user-attachments/assets/55221a3b-962b-49b8-bd3c-4e656cd2f56d" muted autoplay loop playsinline style="max-width: 100%;">
+</video>
+
+Sheep alone without wolves also form interesting patterns:
+
+<video src="https://github.com/user-attachments/assets/39c9b48b-5d5e-4844-8579-5091827f50b4" muted autoplay loop playsinline style="max-width: 100%;">
+</video>
+
 #### Sheep and Wolves
 
 Solid nodes are "sheep" and nodes represented as a colored ring are "wolves".
@@ -19,9 +36,13 @@ Wolves die if they touch a wall, or touch another wolf.  If a wolf touches a she
 
 ### Installation
 
-Download the runnable jar directly by clicking [here](https://github.com/j-krose/NeuralNodes/raw/master/WolfInSheepsClothing.jar), or by navigating to [this page](https://github.com/j-krose/NeuralNodes/blob/master/WolfInSheepsClothing.jar) and clicking the download button.
+Download the runnable jar directly by clicking [here](https://github.com/j-krose/NeuralNodes/raw/main/WolfInSheepsClothing.jar), or by navigating to [this page](https://github.com/j-krose/NeuralNodes/blob/main/WolfInSheepsClothing.jar) and clicking the download button.
 
-## Contributing the this repository
+Once downloaded, double-click on the jar file to run it. Requires minimum of Java 9, which can be installed from [Oracle](https://www.oracle.com/java/technologies/downloads/).
+
+If launching the jar from the file system does not work, the program can also be launched from the command line with `java -jar WolfInSheepsClothing.jar`. You can use `java -version` to check that you have Java 9 or later installed.
+
+## Contributing to this repository
 
 The project uses [google-java-format](https://github.com/google/google-java-format) for opinionated formatting. Follow
 the instructions in the README to add the plugin to eclipse.

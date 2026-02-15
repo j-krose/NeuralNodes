@@ -1,12 +1,9 @@
 package bugs;
 
-import utils.KDTree2d;
 import utils.Vector2d;
 
 public class KillerBug extends Bug {
-  private boolean killedThisRound_ = false;
-  private int sinceLastKill_ = 0;
-  private int numKills_ = 0;
+  private int millisSinceLastKill_ = 0;
   private int numKillsSinceLastReproduction_ = 0;
 
   public KillerBug(Vector2d position) {
@@ -15,9 +12,8 @@ public class KillerBug extends Bug {
 
   public KillerBug(KillerBug other) {
     super(other);
-    killedThisRound_ = other.killedThisRound_;
-    sinceLastKill_ = other.sinceLastKill_;
-    numKills_ = other.numKills_;
+    millisSinceLastKill_ = other.millisSinceLastKill_;
+    numKillsSinceLastReproduction_ = other.numKillsSinceLastReproduction_;
   }
 
   public KillerBug(KillerBug bug1, KillerBug bug2, Vector2d position) {
@@ -29,32 +25,18 @@ public class KillerBug extends Bug {
     return new KillerBug(this);
   }
 
-  public boolean killedThisRound() // TODO: `madeAKillThisRound()`
-      {
-    return killedThisRound_;
-  }
-
-  public int getNumKills() {
-    return numKills_;
-  }
-
-  public boolean hasKilledEnoughToReproduce() {
-    return numKillsSinceLastReproduction_ >= GameStates.getKillerNKillsToReproduce();
-  }
-
   @Override
   public BugType getBugType() {
     return BugType.KILLER;
   }
 
   @Override
-  protected void onTickStart() {
-    killedThisRound_ = false;
-    sinceLastKill_++;
+  protected void onTickStart(long millisElapsed) {
+    millisSinceLastKill_ += millisElapsed;
   }
 
   @Override
-  protected double calculateReproductionScore(KDTree2d<BugType> bugTree, int round) {
+  protected double calculateReproductionScore() {
     // Once bug reaches GameStates.getKillerNKillsToReproduce() kills, it should have a reproduction
     // score of `1`, so that it is allowed to reproduce
     return numKillsSinceLastReproduction_ - (GameStates.getKillerNKillsToReproduce() - 1);
@@ -79,15 +61,13 @@ public class KillerBug extends Bug {
       if (closestBugType == BugType.KILLER) {
         return true;
       } else {
-        killedThisRound_ = true;
-        sinceLastKill_ = 0;
-        numKills_++;
+        millisSinceLastKill_ = 0;
         numKillsSinceLastReproduction_++;
         return false;
       }
     }
-    if (sinceLastKill_
-        > 60 /* ~ fps */ * GameStates.getKillerStarvationSeconds()) // TODO: put this somewhere else
+    // TODO: put this check somewhere else
+    if ((millisSinceLastKill_ / 1000.0) > GameStates.getKillerStarvationSeconds()) 
     {
       return true;
     }

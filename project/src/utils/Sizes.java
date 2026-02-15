@@ -16,7 +16,7 @@ public class Sizes {
   private static final int BORDER = 5;
   private static final int NET_PANEL_WIDTH = 400;
   private static final int BIAS_PANEL_HEIGHT = 30;
-  private static final int ADJUSTMENTS_PANEL_HEIGHT = 200;
+  private static final int ADJUSTMENTS_PANEL_HEIGHT = 220;
 
   private final int totalWidth_;
   private final int totalHeight_;
