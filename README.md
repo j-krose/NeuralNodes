@@ -8,32 +8,17 @@ A [genetic algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) then sits
 
 Nodes move randomly on restart, but behavior starts to develop quickly:
 
-<video src="https://github.com/user-attachments/assets/c53aeaab-87bb-49b0-9fd1-c8457ef118af" 
-  controls="controls" 
-  autoplay="autoplay" 
-  muted="muted" 
-  loop="loop" 
-  style="max-width: 100%; height: auto;">
+<video src="https://github.com/user-attachments/assets/c53aeaab-87bb-49b0-9fd1-c8457ef118af" muted autoplay loop playsinline style="max-width: 100%;">
 </video>
 
 After some time, more advance hunting and avoidance behaviors emerge:
 
-<video src="https://github.com/user-attachments/assets/55221a3b-962b-49b8-bd3c-4e656cd2f56d" 
-  controls="controls" 
-  autoplay="autoplay" 
-  muted="muted" 
-  loop="loop" 
-  style="max-width: 100%; height: auto;">
+<video src="https://github.com/user-attachments/assets/55221a3b-962b-49b8-bd3c-4e656cd2f56d" muted autoplay loop playsinline style="max-width: 100%;">
 </video>
 
 Sheep alone without wolves also form interesting patterns:
 
-<video src="https://github.com/user-attachments/assets/39c9b48b-5d5e-4844-8579-5091827f50b4" 
-  controls="controls" 
-  autoplay="autoplay" 
-  muted="muted" 
-  loop="loop" 
-  style="max-width: 100%; height: auto;">
+<video src="https://github.com/user-attachments/assets/39c9b48b-5d5e-4844-8579-5091827f50b4" muted autoplay loop playsinline style="max-width: 100%;">
 </video>
 
 #### Sheep and Wolves
