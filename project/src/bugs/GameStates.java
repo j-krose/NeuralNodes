@@ -24,22 +24,21 @@ public class GameStates {
   }
 
   // -- Traditional must move --
-  public static GameStateHolder<Boolean> TRADITIONAL_MUST_MOVE = new GameStateHolder<>(false);
+  public static GameStateHolder<Boolean> TRADITIONAL_MUST_MOVE = new GameStateHolder<>(true);
 
   public static boolean getTraditionalMustMove() {
     return TRADITIONAL_MUST_MOVE.getValue();
   }
 
   // -- Traditional reproduction rate --
-  // TODO: Bring back once sheep reproduction behavior is refined
-  //  public static final List<Integer> TRADITIONAL_REPRODUCTION_SECONDS_OPTIONS =
-  //      IntStream.rangeClosed(1, 60).boxed().collect(Collectors.toList());
-  //  public static GameStateHolder<Integer> TRADITIONAL_REPRODUCTION_SECONDS =
-  //      new GameStateHolder<>(20);
-  //
-  //  public static int getTraditionalReproductionSeconds() {
-  //    return TRADITIONAL_REPRODUCTION_SECONDS.getValue();
-  //  }
+  public static final List<Integer> TRADITIONAL_REPRODUCTION_SECONDS_OPTIONS =
+      IntStream.rangeClosed(1, 60).boxed().collect(Collectors.toList());
+  public static GameStateHolder<Integer> TRADITIONAL_REPRODUCTION_SECONDS =
+      new GameStateHolder<>(10);
+
+  public static int getTraditionalReproductionSeconds() {
+    return TRADITIONAL_REPRODUCTION_SECONDS.getValue();
+  }
 
   // -- Killers exist --
   public static GameStateHolder<Boolean> KILLERS_EXIST = new GameStateHolder<>(true);
@@ -61,7 +60,7 @@ public class GameStates {
 
   public static final List<Integer> KILLER_N_KILLS_TO_REPRODUCE_OPTIONS =
       IntStream.rangeClosed(1, 20).boxed().collect(Collectors.toList());
-  public static GameStateHolder<Integer> KILLER_N_KILLS_TO_REPRODUCE = new GameStateHolder<>(5);
+  public static GameStateHolder<Integer> KILLER_N_KILLS_TO_REPRODUCE = new GameStateHolder<>(3);
 
   public static int getKillerNKillsToReproduce() {
     return KILLER_N_KILLS_TO_REPRODUCE.getValue();

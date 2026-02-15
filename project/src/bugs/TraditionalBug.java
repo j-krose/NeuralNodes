@@ -1,30 +1,31 @@
 package bugs;
 
-import utils.KDTree2d;
 import utils.Vector2d;
 
 public class TraditionalBug extends Bug {
-  // TODO: Should be a game state (and should also have a dropdown to control distance vs time or
-  // whatever)
-  private static final double DISTANCE_NEEDED_TO_REPRODUCE = 25.;
+  private static int ALLOWED_MILLIS_SLOW = 1000; // Dies after 1s slow
 
-  private final int birthRound_;
-  private int slowRounds = 0;
+  private int millisAlive_ = 0;
+  private int millisSlow_ = 0;
+  private final boolean isFromInitialBatch_;
 
-  public TraditionalBug(Vector2d position, int birthRound) {
+  public TraditionalBug(Vector2d position, boolean isFromInitialBatch) {
     super(position);
-    birthRound_ = birthRound;
+    isFromInitialBatch_ = isFromInitialBatch;
   }
 
   public TraditionalBug(TraditionalBug other) {
     super(other);
-    birthRound_ = other.birthRound_;
+    millisAlive_ = other.millisAlive_;
+    millisSlow_ = other.millisSlow_;
+    isFromInitialBatch_ = other.isFromInitialBatch_;
   }
 
   public TraditionalBug(
-      TraditionalBug bug1, TraditionalBug bug2, Vector2d position, int birthRound) {
+      TraditionalBug bug1, TraditionalBug bug2, Vector2d position) {
     super(bug1, bug2, position);
-    birthRound_ = birthRound;
+    // Bugs from reproduction are never from initial batch
+    isFromInitialBatch_ = false;
   }
 
   @Override
@@ -32,49 +33,37 @@ public class TraditionalBug extends Bug {
     return new TraditionalBug(this);
   }
 
-  public int getBirthRound() {
-    return birthRound_;
-  }
-
-  //  public boolean isOldEnoughToReproduce(int currRound) {
-  //    if (getNeuralNet().getResultLayer()[2] < 0.95) {
-  //      return false;
-  //    }
-  //
-  //    // In addition to all the bugs that are actually old enough to reproduce,
-  //    // consider all bugs born at the beginning of the game
-  //    // "old enough to reproduce"
-  //    int minReproductionAge = 60 /* ~ fps */ * GameStates.getTraditionalReproductionSeconds();
-  //    return (currRound - birthRound_ > minReproductionAge) || birthRound_ < minReproductionAge;
-  //  }
-
   @Override
   public BugType getBugType() {
     return BugType.TRADITIONAL;
   }
 
+  protected void onTickStart(long millisElapsed) {
+    millisAlive_ += millisElapsed;
+    // Add time to slow time by default. If the round is not slow, it is reset to 0 in
+    // killedBySpeed(...)
+    millisSlow_ += millisElapsed;
+  }
+
   @Override
-  protected double calculateReproductionScore(KDTree2d<BugType> bugTree, int round) {
-    Vector2d nearest = bugTree.findNearestExcludingSame(getPosition()).getLocation();
-    double centerDistance = getPosition().subtract(nearest).norm();
-    double gap = centerDistance - 2 * GameStates.getBugRadius();
-    // Must have at least DISTANCE_NEEDED_TO_REPRODUCE gap in order to reproduce
-    return gap - DISTANCE_NEEDED_TO_REPRODUCE;
+  protected double calculateReproductionScore() {
+    // Bugs from the initial batch can reproduce immediately (without this basically all bugs die
+    // immediately without creating more)
+    double requiredSeconds =
+        isFromInitialBatch_ ? 0 : GameStates.getTraditionalReproductionSeconds();
+
+    // When millisecondsAlive_ reaches threshold, bug goes positive and can reproduce
+    return (millisAlive_ / 1000.) - requiredSeconds;
   }
 
   @Override
   protected boolean killedBySpeed(double rawSpeed) {
-    if (GameStates.getTraditionalMustMove()) {
-      if (Math.abs(rawSpeed) < .1) {
-        slowRounds++;
-      } else {
-        slowRounds = 0;
-      }
-      if (slowRounds > 100) {
-        return true;
-      }
+    // millisSlow_ is already incremented in onTickStart(...). Reset it if bug is not going slow.
+    if (Math.abs(rawSpeed) > .1) {
+      millisSlow_ = 0;
     }
-    return false;
+    
+    return GameStates.getTraditionalMustMove() && (millisSlow_ > ALLOWED_MILLIS_SLOW);
   }
 
   @Override

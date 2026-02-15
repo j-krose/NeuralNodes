@@ -127,7 +127,7 @@ public abstract class Bug {
     return SHARED_BUG_TICK_EXECUTOR.submit(
         () -> {
           ConcurrentTimers.Checkpoint checkpoint = new ConcurrentTimers.Checkpoint();
-          onTickStart();
+          onTickStart(millisElapsed);
 
           Vector2d boardSize = Sizes.getBoardSize();
 
@@ -236,15 +236,15 @@ public abstract class Bug {
   }
 
   // Subclasses must override this to calculate a new reproduction score after all bugs have ticked
-  protected abstract double calculateReproductionScore(KDTree2d<BugType> bugTree, int round);
+  protected abstract double calculateReproductionScore();
 
-  public void updateReproductionScore(KDTree2d<BugType> bugTree, int round) {
-    reproductionScore_ = calculateReproductionScore(bugTree, round);
+  public void updateReproductionScore() {
+    reproductionScore_ = calculateReproductionScore();
   }
 
   // Subclasses can override this if they need to do something at the beginning of
   // the tick
-  protected void onTickStart() {}
+  protected void onTickStart(long millisElapsed) {}
 
   // Subclasses can override this if they need to do something after reproducing
   protected void updateStateAfterReproduction() {}

@@ -34,14 +34,6 @@ public class AdjustmentsPanel extends JPanel {
         ComponentTiedToOption.checkBoxTiedToBoolean("Wolves exist", GameStates.KILLERS_EXIST);
     addToGrid(wolvesExist, 0, ++row, 2);
 
-    addToGrid(showMatings, 0, ++row, 2);
-
-    // -- Sheep must move --
-    JCheckBox sheepMustMove =
-        ComponentTiedToOption.checkBoxTiedToBoolean(
-            "Sheep must move to survive", GameStates.KILLERS_EXIST);
-    addToGrid(sheepMustMove, 0, ++row, 2);
-
     // -- Wolf starvation --
     JPanel wolfStarvationPanel = new JPanel();
     JLabel wolfStarvationLabel1 = new JLabel("Wolves starve after");
@@ -56,38 +48,37 @@ public class AdjustmentsPanel extends JPanel {
     wolfStarvationPanel.add(wolfStarvationLabel2);
     addToGrid(wolfStarvationPanel, 0, ++row, 2);
 
-    // -- Sheep reproduction rate --
-    // TODO: Bring back once sheep reproduction behavior is refined
-    //    JPanel sheepReproductionPanel = new JPanel();
-    //    JLabel sheepReproductionLabel1 = new JLabel("Sheep reproduce after");
-    //    sheepReproductionPanel.add(sheepReproductionLabel1);
-    //
-    //    JSpinner sheepReproductionSpinner =
-    //        makeIntegerSpinner(
-    //            GameStates.TRADITIONAL_REPRODUCTION_SECONDS,
-    //            GameStates.TRADITIONAL_REPRODUCTION_SECONDS_OPTIONS,
-    //            2);
-    //    sheepReproductionPanel.add(sheepReproductionSpinner);
-    //
-    //    JLabel sheepReproductionLabel2 = new JLabel("seconds");
-    //    sheepReproductionPanel.add(sheepReproductionLabel2);
-    //    addToGrid(sheepReproductionPanel, 0, ++row, 2);
-
     // -- Wolf reproduction --
     JPanel wolfReproductionPanel = new JPanel();
     JLabel wolfReproductionLabel1 = new JLabel("Wolves must kill");
     wolfReproductionPanel.add(wolfReproductionLabel1);
 
-    JSpinner wolfReproductionSpinner =
-        makeIntegerSpinner(
-            GameStates.KILLER_N_KILLS_TO_REPRODUCE,
-            GameStates.KILLER_N_KILLS_TO_REPRODUCE_OPTIONS,
-            2);
+    JSpinner wolfReproductionSpinner = makeIntegerSpinner(GameStates.KILLER_N_KILLS_TO_REPRODUCE,
+        GameStates.KILLER_N_KILLS_TO_REPRODUCE_OPTIONS, 2);
     wolfReproductionPanel.add(wolfReproductionSpinner);
 
     JLabel wolfReproductionLabel2 = new JLabel("sheep to reproduce");
     wolfReproductionPanel.add(wolfReproductionLabel2);
     addToGrid(wolfReproductionPanel, 0, ++row, 2);
+
+    // -- Sheep must move --
+    JCheckBox sheepMustMove = ComponentTiedToOption
+        .checkBoxTiedToBoolean("Sheep must move to survive", GameStates.TRADITIONAL_MUST_MOVE);
+    addToGrid(sheepMustMove, 0, ++row, 2);
+
+    // -- Sheep reproduction rate --
+    JPanel sheepReproductionPanel = new JPanel();
+    JLabel sheepReproductionLabel1 = new JLabel("Sheep reproduce after");
+    sheepReproductionPanel.add(sheepReproductionLabel1);
+
+    JSpinner sheepReproductionSpinner =
+        makeIntegerSpinner(GameStates.TRADITIONAL_REPRODUCTION_SECONDS,
+            GameStates.TRADITIONAL_REPRODUCTION_SECONDS_OPTIONS, 2);
+    sheepReproductionPanel.add(sheepReproductionSpinner);
+
+    JLabel sheepReproductionLabel2 = new JLabel("seconds");
+    sheepReproductionPanel.add(sheepReproductionLabel2);
+    addToGrid(sheepReproductionPanel, 0, ++row, 2);
 
     // -- Bug radius --
     JPanel bugRadiusPanel = new JPanel();

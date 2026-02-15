@@ -1,5 +1,8 @@
 ## Wolf in Sheep's Clothing
 
+<video src="https://github.com/j-krose/NeuralNodes/blob/main/videos/reset.mov" controls="controls" style="max-width: 100%;">
+</video>
+
 A program designed to showcase the Neural Nodes framework.  Each node has its own fully connected forward-propagating nonlinear [nueral net](https://en.wikipedia.org/wiki/Artificial_neural_network).  When a node is "born", the parameters of its neural net are set permanently.  The input layer of the neural net allows the node to see the direction and distance to the nearest node, the identity of the nearest node (sheep or wolf), and the distance to each of the four walls.  The input layer of then feeds through a hidden layer in which each neuron uses a [sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function) as an activation function, which then feeds to they output layer. The output of the neural net defines a direction that the node will move, and a velocity to move at.
 
 A [genetic algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) then sits on top of this structure of individual nodes.  If a node satisfies some condition (different types of nodes have different reproduction conditions), it may have the opportunity to pass on its genome, which defines the weights and biases of the neural net and the number of neurons in the hidden layer.  Node reproduction always involves the mixing of two different node geonomes, as well as a degree of random mutation, to ensure that the system is always evolving and trying new solutions.  At the beginning of the simulation, a certain number of nodes are creating using completely random genomes.  Over time, the populations in question evolve "smarter" neural nets that allow them to better solve whatever problem is framed by their reproduction critera.  In essence, the nodes with the best neual nets pass on altered versions those neural nets to future generations.  The goal is provide minimal intervention into the system and let the genetic algorithm optimize the wights and biases of the neural nets of the populations of nodes.
@@ -21,11 +24,11 @@ Wolves die if they touch a wall, or touch another wolf.  If a wolf touches a she
 
 Download the runnable jar directly by clicking [here](https://github.com/j-krose/NeuralNodes/raw/main/WolfInSheepsClothing.jar), or by navigating to [this page](https://github.com/j-krose/NeuralNodes/blob/main/WolfInSheepsClothing.jar) and clicking the download button.
 
-Once downloaded, double-click on the jar file to run it. Requires minumum of Java 9, which can be installed from [Oracle](https://www.oracle.com/java/technologies/downloads/).
+Once downloaded, double-click on the jar file to run it. Requires minimum of Java 9, which can be installed from [Oracle](https://www.oracle.com/java/technologies/downloads/).
 
 If launching the jar from the file system does not work, the program can also be launched from the command line with `java -jar WolfInSheepsClothing.jar`. You can use `java -version` to check that you have Java 9 or later installed.
 
-## Contributing the this repository
+## Contributing to this repository
 
 The project uses [google-java-format](https://github.com/google/google-java-format) for opinionated formatting. Follow
 the instructions in the README to add the plugin to eclipse.
