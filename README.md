@@ -1,6 +1,6 @@
 ## Wolf in Sheep's Clothing
 
-<video src="videos/stable.mp4" controls="controls" style="max-width: 100%;">
+<video src="https://raw.githubusercontent.com/j-krose/NeuralNodes/resume-update/videos/stable.mp4" controls="controls" style="max-width: 100%;">
 </video>
 
 A program designed to showcase the Neural Nodes framework.  Each node has its own fully connected forward-propagating nonlinear [nueral net](https://en.wikipedia.org/wiki/Artificial_neural_network).  When a node is "born", the parameters of its neural net are set permanently.  The input layer of the neural net allows the node to see the direction and distance to the nearest node, the identity of the nearest node (sheep or wolf), and the distance to each of the four walls.  The input layer of then feeds through a hidden layer in which each neuron uses a [sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function) as an activation function, which then feeds to they output layer. The output of the neural net defines a direction that the node will move, and a velocity to move at.
