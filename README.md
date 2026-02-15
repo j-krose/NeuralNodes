@@ -19,7 +19,11 @@ Wolves die if they touch a wall, or touch another wolf.  If a wolf touches a she
 
 ### Installation
 
-Download the runnable jar directly by clicking [here](https://github.com/j-krose/NeuralNodes/raw/master/WolfInSheepsClothing.jar), or by navigating to [this page](https://github.com/j-krose/NeuralNodes/blob/master/WolfInSheepsClothing.jar) and clicking the download button.
+Download the runnable jar directly by clicking [here](https://github.com/j-krose/NeuralNodes/raw/main/WolfInSheepsClothing.jar), or by navigating to [this page](https://github.com/j-krose/NeuralNodes/blob/main/WolfInSheepsClothing.jar) and clicking the download button.
+
+Once downloaded, double-click on the jar file to run it. Requires minumum of Java 9, which can be installed from [Oracle](https://www.oracle.com/java/technologies/downloads/).
+
+If launching the jar from the file system does not work, the program can also be launched from the command line with `java -jar WolfInSheepsClothing.jar`. You can use `java -version` to check that you have Java 9 or later installed.
 
 ## Contributing the this repository
 

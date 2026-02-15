@@ -1,5 +1,3 @@
-
-.project
 .classpath
 
 .metadata
@@ -57,3 +55,6 @@ local.properties
 .cache-main
 .scala_dependencies
 .worksheet
+
+# macOS
+.DS_Store
