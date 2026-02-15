@@ -4,6 +4,8 @@ A program designed to showcase the Neural Nodes framework.  Each node has its ow
 
 A [genetic algorithm](https://en.wikipedia.org/wiki/Genetic_algorithm) then sits on top of this structure of individual nodes.  If a node satisfies some condition (different types of nodes have different reproduction conditions), it may have the opportunity to pass on its genome, which defines the weights and biases of the neural net and the number of neurons in the hidden layer.  Node reproduction always involves the mixing of two different node geonomes, as well as a degree of random mutation, to ensure that the system is always evolving and trying new solutions.  At the beginning of the simulation, a certain number of nodes are creating using completely random genomes.  Over time, the populations in question evolve "smarter" neural nets that allow them to better solve whatever problem is framed by their reproduction critera.  In essence, the nodes with the best neual nets pass on altered versions those neural nets to future generations.  The goal is provide minimal intervention into the system and let the genetic algorithm optimize the wights and biases of the neural nets of the populations of nodes.
 
+#### Examples
+
 Nodes move randomly on restart, but behavior starts to develop quickly:
 
 <video src="https://github.com/user-attachments/assets/c53aeaab-87bb-49b0-9fd1-c8457ef118af" 
